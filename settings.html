@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="violet">
+<head>
+  <meta charset="UTF-8">
+  <title>Settings</title>
+  <link rel="stylesheet" href="../theme.css">
+  <link rel="stylesheet" href="../base.css">
+  <link rel="stylesheet" href="app.css">
+  <style>
+    body { display: flex; background: var(--color-bg); overflow: hidden; }
+    nav { width: 170px; flex: none; padding: 26px 0 0 22px; display: flex; flex-direction: column; gap: 6px; }
+    nav button { text-align: left; background: none; border: none; color: var(--color-text-muted); font-size: 15px; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+    nav button:hover { color: var(--color-text); }
+    nav button.sel { color: var(--color-text); background: var(--overlay-hover); }
+    main { flex: 1; overflow-y: auto; padding: 22px 40px 40px 20px; }
+    section { display: none; max-width: 1100px; }
+    section.sel { display: block; }
+    .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px; }
+    .themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+    .theme { padding: 0; overflow: hidden; border-radius: 14px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); text-align: left; cursor: pointer; }
+    .theme.on { border-color: var(--color-text-muted); box-shadow: 0 0 0 1px var(--color-text-muted); }
+    .theme .hd { padding: 14px; background: var(--color-surface-2); border-bottom: 1px solid var(--color-border); font-size: 15px; }
+    .theme .sw { display: flex; gap: 8px; padding: 14px 14px 6px; }
+    .theme .sw i { flex: 1; height: 26px; border-radius: 8px; }
+    .theme .dots { display: flex; gap: 6px; padding: 4px 14px 14px; }
+    .theme .dots i { width: 18px; height: 10px; border-radius: 5px; }
+    #dynSw { display: inline-block; width: 26px; height: 26px; border-radius: 50%; background: var(--color-pin); border: 2px solid var(--color-border-strong); transition: background .4s; }
+    .bgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-top: 12px; }
+    .tm { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .tm label { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--color-surface-3); border: 1px solid var(--color-border); font-size: 13px; }
+    .tm label span { flex: 1; color: var(--color-text-muted); }
+    .tm input[type=color] { width: 38px; height: 30px; padding: 0; border: none; border-radius: 6px; background: none; cursor: pointer; }
+    .tm .hex { width: 86px; min-width: 0; font-family: Consolas, monospace; }
+    .cloaks { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+    .cloak { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--color-border); background: var(--color-surface-3); color: var(--color-text); text-align: left; cursor: pointer; }
+    .cloak:hover { border-color: var(--color-border-hover); }
+    .cloak.on { border-color: var(--color-pin); box-shadow: 0 0 0 1px var(--color-pin); }
+    .cloak img { width: 22px; height: 22px; border-radius: 4px; flex: none; }
+    .cloak b { display: block; font-size: 13px; font-weight: 600; }
+    .cloak small { display: block; color: var(--color-text-subtle); font-size: 11px; margin-top: 2px; }
+    .bootprev { width: 140px; height: 90px; border-radius: 12px; background: #12071f; border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .bootprev img { max-width: 90%; max-height: 90%; }
+    .bg { height: 110px; border-radius: 10px; border: 2px solid transparent; cursor: pointer; padding: 0; background-size: cover; background-position: center; display: flex; align-items: flex-end; }
+    .bg span { margin: 8px; padding: 2px 8px; border-radius: 6px; background: #0008; color: #fff; font-size: 12px; }
+    .bg.on { border-color: var(--color-white); }
+    .danger { color: var(--color-danger); }
+    .msg { margin-top: 8px; font-size: 12px; color: var(--color-text-subtle); }
+    .bstyles { display: flex; gap: 14px; flex-wrap: wrap; }
+    .bst { width: 190px; padding: 0 0 10px; border-radius: 14px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+    .bst.on { border-color: var(--color-text-muted); box-shadow: 0 0 0 1px var(--color-text-muted); }
+    .pv { height: 86px; padding: 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; background: linear-gradient(135deg, #3a6ea5, #8a3ffc 55%, #e0405a); }
+    .pv i { display: block; height: 14px; border-radius: 7px; }
+    .pv.glass i { background: rgba(255,255,255,.22); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,.25); }
+    .pv.theme { background: var(--color-surface-2); }
+    .pv.theme i { background: var(--overlay-browser-tab); }
+    .pv i + i { width: 60%; }
+    dl { margin: 0; display: grid; grid-template-columns: 140px 1fr; gap: 8px; font-size: 14px; }
+    dt { color: var(--color-text-muted); } dd { margin: 0; }
+  </style>
+</head>
+<body>
+  <nav id="nav">
+    <button data-s="prefs" class="sel">Preferences</button>
+    <button data-s="browser">Browser</button>
+    <button data-s="taskbar">Taskbar</button>
+    <button data-s="shortcuts">Shortcuts</button>
+    <button data-s="jarvis">Jarvis</button>
+    <button data-s="proxy">Proxy</button>
+    <button data-s="themes">Themes</button>
+    <button data-s="bg">Background</button>
+    <button data-s="cloak">Tab cloak</button>
+    <button data-s="boot">Boot logo</button>
+    <button data-s="display">Display</button>
+    <button data-s="data">Data</button>
+    <button data-s="about">About</button>
+  </nav>
+
+  <main>
+    <section id="prefs" class="sel">
+      <h1>Preferences</h1>
+      <div class="two">
+        <div class="card">
+          <h3>About Blank</h3>
+          <p>Opens Galaxy OS in a separate window titled about:blank</p>
+          <div class="row"><button class="flat" id="abLaunch">Launch</button><button class="pill" id="abAuto">Auto AB</button></div>
+        </div>
+        <div class="card">
+          <h3>Blob</h3>
+          <p>Opens Galaxy OS in a separate window with a neutral title</p>
+          <div class="row"><button class="flat" id="blobLaunch">Launch</button><button class="pill" id="blobAuto">Auto Blob</button></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:20px">
+        <h3>Quick key</h3>
+        <p>Press this key anywhere in Galaxy OS (not while typing in a text box) to open a website in the Browser. Add Ctrl or Alt if you want it to also work while a website is focused.</p>
+        <div class="row" style="align-items:center">
+          <button class="pill" id="qkOn">Enabled</button>
+          <input class="field" id="qkKey" style="min-width:150px;width:150px;text-align:center;cursor:pointer">
+          <input class="field" id="qkUrl" placeholder="https://www.google.com" spellcheck="false">
+          <button class="flat" id="qkSave">Save</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Anti-Close</h3>
+        <p>Shows a "Changes you made may not be saved" prompt before the window closes</p>
+        <div class="row"><button class="pill" id="anti">Toggle</button></div>
+      </div>
+    </section>
+
+    <section id="browser">
+      <h1>Browser</h1>
+      <div class="card">
+        <h3>Browser style</h3>
+        <p>Glass makes the Browser translucent and blurred so your wallpaper shows through. Theme uses the solid colours of your selected theme.</p>
+        <div class="bstyles" id="bstyles">
+          <button class="bst" data-b="glass"><div class="pv glass"><i></i><i></i></div><span>Glass</span></button>
+          <button class="bst" data-b="theme"><div class="pv theme"><i></i><i></i></div><span>Theme</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section id="taskbar">
+      <h1>Taskbar</h1>
+      <div class="two">
+        <div class="card">
+          <h3>Position</h3>
+          <p>Where the taskbar sits on the screen</p>
+          <div class="row" id="dockPos">
+            <button class="pill" data-v="bottom">Bottom</button>
+            <button class="pill" data-v="left">Left</button>
+            <button class="pill" data-v="right">Right</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Icon size</h3>
+          <p>Make the taskbar icons smaller or larger</p>
+          <div class="row" id="dockSize">
+            <button class="pill" data-v="sm">Small</button>
+            <button class="pill" data-v="md">Medium</button>
+            <button class="pill" data-v="lg">Large</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:20px">
+        <h3>Arrange apps</h3>
+        <p>Drag taskbar icons to move them to the left, middle or right of the taskbar. Drop one icon onto another to make a folder (click a folder to open it). Right-click the taskbar for more.</p>
+        <div class="row"><button class="flat" id="addAppBtn">+ Add app</button><button class="flat" id="buildAppBtn">+ Build app</button><button class="flat" id="resetDock">Reset taskbar layout</button></div>
+      </div>
+      <div class="card">
+        <h3>Window animations</h3>
+        <p>Windows fade in when opened, fly to the taskbar icon when minimized and fade out when closed</p>
+        <div class="row"><button class="pill" id="animBtn">Animations</button></div>
+      </div>
+    </section>
+
+    <section id="shortcuts">
+      <h1>Shortcuts</h1>
+      <div class="card" style="margin-bottom:20px">
+        <h3>App shortcut</h3>
+        <p>Pick an app, click the key box and press the keys you want. Press that shortcut anywhere in Galaxy OS to open the app. Combos with Alt or Ctrl also work while a website is focused.</p>
+        <div class="row" style="align-items:center">
+          <select class="field" id="scApp" style="min-width:200px"></select>
+          <input class="field" id="scKey" style="min-width:170px;width:170px;text-align:center;cursor:pointer">
+          <button class="flat" id="scSave">Save</button>
+          <button class="flat" id="scClear">Clear</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Your shortcuts</h3>
+        <p>Defaults: Alt + S opens Settings, Alt + A opens Apps.</p>
+        <div id="scList"></div>
+      </div>
+    </section>
+
+    <section id="jarvis">
+      <h1>Jarvis</h1>
+      <div class="card" style="margin-bottom:18px">
+        <h3>Voice assistant</h3>
+        <p>Press <b>Ctrl + H</b> anywhere in Galaxy OS, then say what you want: "open TikTok", "close the browser", "search for cats", "change theme to violet", "next wallpaper", "snap left", "what time is it". Starting with the assistant's name works too: "Jarvis, open TikTok".</p>
+        <div class="row" style="align-items:center"><button class="pill" id="jvOn">Jarvis enabled</button><button class="flat" id="jvTest">Try it now</button></div>
+      </div>
+      <div class="card" style="margin-bottom:18px">
+        <h3>Name</h3>
+        <p>What you call your assistant. It answers to this name and shows it on the screen.</p>
+        <div class="row" style="align-items:center"><input class="field" id="jvName" maxlength="20" placeholder="Jarvis" style="min-width:200px"><button class="flat" id="jvNameSave">Save name</button></div>
+      </div>
+      <div class="card" style="margin-bottom:18px">
+        <h3>Spoken replies</h3>
+        <p>Jarvis talks back using your computer's voices.</p>
+        <div class="row"><button class="pill" id="jvVoice">Speak replies</button></div>
+      </div>
+      <div class="card">
+        <h3>Listening engine</h3>
+        <p>Auto tries the browser's built-in speech service and switches to the Whisper model if it is not available (Electron usually needs Whisper). Whisper downloads a small model (about 40 MB) the first time and needs an internet connection.</p>
+        <div class="row" id="jvEngine"><button class="pill" data-v="auto">Auto</button><button class="pill" data-v="whisper">Whisper</button><button class="pill" data-v="browser">Browser</button></div>
+      </div>
+    </section>
+
+    <section id="proxy">
+      <h1>Proxy</h1>
+      <div class="two">
+        <div class="card">
+          <h3>Search</h3>
+          <p>Change the browser's search engine</p>
+          <div class="row" id="engines">
+            <button class="pill" data-e="google">Google</button>
+            <button class="pill" data-e="bing">Bing</button>
+            <button class="pill" data-e="brave">Brave</button>
+            <button class="pill" data-e="duckduckgo">DuckDuckGo</button>
+            <button class="pill" data-e="mojeek">Mojeek</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Web proxy</h3>
+          <p>Built in and always on: every Browser tab, app and game link loads through this site's own proxy. If a search engine shows a captcha or a blank page, switch to another one on the left (Bing and Mojeek are the most reliable).</p>
+          <div class="row"><button class="flat" id="proxyTest">Test proxy</button><span id="proxyRes" style="opacity:.8;font-size:13px"></span></div>
+          <div style="display:none"><input id="proxyIn"><button id="proxyApply"></button></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="themes">
+      <h1>Themes</h1>
+      <p style="color:var(--color-text-muted);margin:-10px 0 18px">Chill lofi vibes~</p>
+      <div class="card" style="margin-bottom:18px">
+        <h3>Dynamic theme</h3>
+        <p>Pull the accent color from your wallpaper automatically. Buttons, highlights, the taskbar indicator and widgets follow it, and it updates whenever you change the background. The theme you pick below still sets the surfaces.</p>
+        <div class="row" style="align-items:center"><button class="pill" id="dynBtn">Dynamic theme</button><i id="dynSw" title="Current accent color"></i></div>
+      </div>
+      <div class="card" style="margin-bottom:18px">
+        <h3>Theme maker</h3>
+        <p>Pick four colors and the whole OS changes live. Share your theme as a short code, or paste a friend's code to use theirs. Your theme appears below as "Custom".</p>
+        <div class="tm">
+          <label><span>Background</span><input type="color" id="tmbg"><input class="field hex" id="tmbgH" maxlength="7" spellcheck="false"></label>
+          <label><span>Accent</span><input type="color" id="tmaccent"><input class="field hex" id="tmaccentH" maxlength="7" spellcheck="false"></label>
+          <label><span>Text</span><input type="color" id="tmtext"><input class="field hex" id="tmtextH" maxlength="7" spellcheck="false"></label>
+          <label><span>Windows</span><input type="color" id="tmwindow"><input class="field hex" id="tmwindowH" maxlength="7" spellcheck="false"></label>
+        </div>
+        <div class="row" style="margin-bottom:14px"><button class="flat" id="tmFrom">Start from current theme</button><button class="flat" id="tmRand">Surprise me</button><button class="flat" id="tmReset">Reset</button></div>
+        <div class="row" style="align-items:center;margin-bottom:10px"><input class="field" id="tmCode" readonly style="min-width:300px;font-family:Consolas,monospace"><button class="flat" id="tmCopy">Copy code</button></div>
+        <div class="row" style="align-items:center"><input class="field" id="tmImp" placeholder="Paste a code like GXT1.09060f.8b5cdb.e3deed.6e40bf" spellcheck="false" style="min-width:300px;font-family:Consolas,monospace"><button class="flat" id="tmApply">Use code</button></div>
+      </div>
+      <div class="themes" id="themeGrid"></div>
+    </section>
+
+    <section id="bg">
+      <h1>Backgrounds</h1>
+      <div class="card">
+        <h3>Backgrounds</h3>
+        <p>Pick a wallpaper, or paste an image link</p>
+        <div class="bgs" id="bgGrid"></div>
+        <div class="row" style="margin-top:16px">
+          <input class="field" id="bgUrl" placeholder="https://example.com/wallpaper.png" spellcheck="false">
+          <button class="flat" id="bgSet">Use image</button>
+          <button class="flat" id="bgClear">Remove</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="cloak">
+      <h1>Tab cloak</h1>
+      <div class="card" style="margin-bottom:18px">
+        <h3>Disguise the window</h3>
+        <p>Changes the window title and the window / taskbar icon so Galaxy OS looks like another site. The icon is that site's own favicon, so it needs an internet connection to load (the title changes right away).</p>
+        <div class="cloaks" id="cloakGrid"></div>
+      </div>
+      <div class="card">
+        <h3>Your own</h3>
+        <p>Type any title and a site (for example <b>docs.google.com</b>) to borrow its icon.</p>
+        <div class="row" style="align-items:center"><input class="field" id="clTitle" placeholder="Window title" maxlength="80" style="min-width:230px"><input class="field" id="clSite" placeholder="Site for the icon (optional)" style="min-width:230px" spellcheck="false"><button class="flat" id="clApply">Apply</button><button class="flat" id="clReset">Back to Galaxy OS</button></div>
+      </div>
+    </section>
+
+    <section id="boot">
+      <h1>Boot logo</h1>
+      <div class="card" style="margin-bottom:18px">
+        <h3>Text</h3>
+        <p>What the startup and shutdown animation spells out (up to 16 characters).</p>
+        <div class="row" style="align-items:center"><input class="field" id="bootText" maxlength="16" placeholder="Galaxy OS" style="min-width:230px"><button class="flat" id="bootTextSave">Save</button></div>
+      </div>
+      <div class="card" style="margin-bottom:18px">
+        <h3>Image</h3>
+        <p>Upload your own logo instead of text. A PNG with a transparent background looks best. It is saved on this computer, shrunk to fit.</p>
+        <div class="row" style="align-items:center"><div class="bootprev" id="bootPrev"><span style="color:var(--color-text-subtle);font-size:12px">No image</span></div><button class="flat" id="bootPick">Choose image…</button><button class="flat" id="bootClearImg">Remove image</button><input type="file" id="bootFile" accept="image/*" style="display:none"></div>
+      </div>
+      <div class="card">
+        <h3>Subtitle &amp; preview</h3>
+        <p>The small line under the logo. Leave it empty for none.</p>
+        <div class="row" style="align-items:center"><input class="field" id="bootSub" maxlength="40" placeholder="Desktop · Browser · Games" style="min-width:260px"><button class="flat" id="bootSubSave">Save</button><button class="flat" id="bootSubDef">Default</button></div>
+        <div class="row" style="margin-top:14px"><button class="pill on" id="bootPlay">▶ Preview animation</button><button class="flat" id="bootReset">Reset everything</button></div>
+      </div>
+    </section>
+
+    <section id="display">
+      <h1>Display</h1>
+      <div class="card" style="margin-bottom:18px">
+        <h3>Brightness</h3>
+        <p>Dims the whole desktop, including websites and games. The sun button in the top bar opens the same controls.</p>
+        <div class="row" style="align-items:center;gap:14px"><input type="range" id="brSlider" min="20" max="100" step="1" style="width:300px;accent-color:var(--color-pin)"><b id="brVal"></b></div>
+      </div>
+      <div class="card" style="margin-bottom:18px">
+        <h3>Night light</h3>
+        <p>Warms and dims the screen. Choose Schedule to turn it on and off by itself (a range like 21:00 to 07:00 runs overnight).</p>
+        <div class="row" id="nlMode"><button class="pill" data-m="off">Off</button><button class="pill" data-m="on">On</button><button class="pill" data-m="schedule">Schedule</button></div>
+        <div class="row" id="nlSched" style="margin-top:14px;align-items:center;gap:12px"><span>From</span><input class="field" type="time" id="nlFrom" style="min-width:0;width:120px;color-scheme:dark"><span>to</span><input class="field" type="time" id="nlTo" style="min-width:0;width:120px;color-scheme:dark"></div>
+        <div class="row" style="margin-top:16px;align-items:center;gap:14px"><span style="width:110px">Warmth</span><input type="range" id="nlWarm" min="0" max="100" step="1" style="width:240px;accent-color:var(--color-pin)"><b id="nlWarmV"></b></div>
+        <div class="row" style="margin-top:12px;align-items:center;gap:14px"><span style="width:110px">Extra dimming</span><input type="range" id="nlDim" min="0" max="40" step="1" style="width:240px;accent-color:var(--color-pin)"><b id="nlDimV"></b></div>
+      </div>
+      <div class="card">
+        <h3>Low battery alert</h3>
+        <p>Shows a message when the battery runs low and the charger is not plugged in. For a live readout, add the Battery widget (right-click the desktop &gt; Widgets &gt; Battery).</p>
+        <div class="row" style="align-items:center;gap:10px"><button class="pill" id="batToastBtn">Alerts</button><span style="margin-left:6px;color:var(--color-text-muted)">Warn at</span><div class="row" id="batLevel"><button class="pill" data-v="10">10%</button><button class="pill" data-v="15">15%</button><button class="pill" data-v="20">20%</button><button class="pill" data-v="30">30%</button></div><button class="flat" id="batTest">Preview alert</button></div>
+      </div>
+    </section>
+
+    <section id="data">
+      <h1>Data</h1>
+      <div class="two">
+        <div class="card">
+          <h3>Browsing data</h3>
+          <p>Clears cookies, site storage and cache from the Browser and GeForce NOW</p>
+          <div class="row"><button class="flat danger" id="clearData">Clear data</button></div>
+        </div>
+        <div class="card">
+          <h3>Export settings</h3>
+          <p>Save your theme, background, taskbar, pins and preferences to a file</p>
+          <div class="row"><button class="flat" id="exportBtn">Export</button></div>
+        </div>
+        <div class="card">
+          <h3>Import settings</h3>
+          <p>Load a settings file exported from Galaxy OS on another computer</p>
+          <div class="row"><button class="flat" id="importBtn">Import</button><input type="file" id="importFile" accept=".json,application/json" style="display:none"></div>
+        </div>
+        <div class="card">
+          <h3>Reset settings</h3>
+          <p>Restores themes, background, search engine and preferences to their defaults</p>
+          <div class="row"><button class="flat danger" id="reset">Reset</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="about">
+      <h1>About</h1>
+      <div class="card">
+        <h3>Galaxy OS</h3>
+        <p>A desktop-style OS browser by FJ Studios, running as a website with a built-in web proxy.</p>
+        <dl id="ver"></dl>
+      </div>
+    </section>
+  </main>
+
+  <script src="../customtheme.js"></script>
+  <script src="common.js"></script>
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const THEMES = ['glass','crimson','ember-dusk','terracotta','tangerine','amber-haze','marigold','citron','olive-grove','clover','fern-hollow','emerald','eucalyptus','aqua','glacier','azure','indigo-veil','violet','amethyst-smoke','plum-velvet','fuchsia','orchid-smoke','rosewood','default','custom'];
+    const BGS = {
+      'train': 'url("../../assets/wallpapers/train-bridge.jpg")',
+      'peak': 'url("../../assets/wallpapers/misty-peak.jpg")',
+      'rail': 'url("../../assets/wallpapers/rail-sea.jpg")',
+      'powerlines': 'url("../../assets/wallpapers/powerlines.jpg")',
+      'hydra': 'url("../../assets/wallpapers/hydra.jpg")',
+      'nsx': 'url("../../assets/wallpapers/nsx.jpg")',
+      'f1': 'url("../../assets/wallpapers/f1.jpg")',
+      'rain': 'url("../../assets/wallpapers/rain.jpg")',
+      'greenroom': 'url("../../assets/wallpapers/greenroom.jpg")',
+      'aurora': 'url("../../assets/wallpapers/aurora-teal.jpg")',
+      'cliff': 'url("../../assets/wallpapers/cliff-cat.jpg")',
+      'live-stars': 'radial-gradient(circle at 70% 35%, #4b2a96 0%, #0a1030 55%, #04050f 100%)',
+      'live-aurora': 'linear-gradient(160deg, #04101c 0%, #0f8a6a 45%, #5b2fa0 75%, #07182a 100%)',
+      'live-galaxy': 'radial-gradient(ellipse at center, #ffd9a8 0%, #c24be0 22%, #2a0f55 55%, #03020a 100%)'
+    };
+    let S = {};
+
+    // sidebar
+    $('#nav').addEventListener('click', (e) => {
+      const s = e.target.dataset.s; if (!s) return;
+      document.querySelectorAll('nav button, section').forEach((x) => x.classList.remove('sel'));
+      e.target.classList.add('sel'); $('#' + s).classList.add('sel');
+    });
+
+    // themes
+    const tg = $('#themeGrid');
+    THEMES.forEach((t) => {
+      const b = document.createElement('button');
+      b.className = 'theme'; b.dataset.theme = t; b.dataset.t = t;
+      b.innerHTML = '<div class="hd"></div><div class="sw"><i style="background:var(--color-surface)"></i><i style="background:var(--color-surface-3)"></i><i style="background:var(--color-chrome)"></i></div><div class="dots"><i style="background:var(--color-pin)"></i><i style="background:var(--color-window)"></i><i style="background:var(--color-text)"></i></div>';
+      b.querySelector('.hd').textContent = t.charAt(0).toUpperCase() + t.slice(1).replace(/-/g, ' ');
+      b.addEventListener('click', () => Galaxy.set({ theme: t }));
+      tg.appendChild(b);
+    });
+
+    // backgrounds
+    const bgGrid = $('#bgGrid');
+    Object.entries(BGS).forEach(([k, v]) => {
+      const b = document.createElement('button');
+      b.className = 'bg'; b.dataset.b = k; b.style.backgroundImage = v;
+      b.innerHTML = '<span></span>'; b.querySelector('span').textContent = k;
+      b.addEventListener('click', () => Galaxy.set({ bg: k, customBg: '' }));
+      bgGrid.appendChild(b);
+    });
+    $('#bgSet').addEventListener('click', () => { const u = $('#bgUrl').value.trim(); if (u) Galaxy.set({ customBg: u }); });
+    $('#bgClear').addEventListener('click', () => { $('#bgUrl').value = ''; Galaxy.set({ customBg: '' }); });
+
+    // preferences
+    $('#abLaunch').addEventListener('click', () => Galaxy.send({ type: 'cloak', mode: 'ab' }));
+    $('#blobLaunch').addEventListener('click', () => Galaxy.send({ type: 'cloak', mode: 'blob' }));
+    $('#abAuto').addEventListener('click', () => Galaxy.set({ autoAB: !S.autoAB, autoBlob: false }));
+    $('#blobAuto').addEventListener('click', () => Galaxy.set({ autoBlob: !S.autoBlob, autoAB: false }));
+    $('#anti').addEventListener('click', () => Galaxy.set({ antiClose: !S.antiClose }));
+
+    // browser style
+    $('#bstyles').addEventListener('click', (e) => { const b = e.target.closest('.bst'); if (b) Galaxy.set({ browserStyle: b.dataset.b }); });
+
+    // taskbar
+    $('#dockPos').addEventListener('click', (e) => { if (e.target.dataset.v) Galaxy.set({ dockPos: e.target.dataset.v }); });
+    $('#dockSize').addEventListener('click', (e) => { if (e.target.dataset.v) Galaxy.set({ dockSize: e.target.dataset.v }); });
+    $('#addAppBtn').addEventListener('click', () => Galaxy.send({ type: 'add-app-dialog' }));
+    $('#buildAppBtn').addEventListener('click', () => Galaxy.send({ type: 'build-app-dialog' }));
+    $('#resetDock').addEventListener('click', () => Galaxy.send({ type: 'reset-dock' }));
+    $('#animBtn').addEventListener('click', () => Galaxy.set({ anim: S.anim === false }));
+    $('#dynBtn').addEventListener('click', () => Galaxy.set({ dynTheme: !S.dynTheme }));
+
+    // jarvis
+    const jv = (patch) => Galaxy.set({ jarvis: Object.assign({ enabled: true, name: 'Jarvis', voice: true, engine: 'auto' }, S.jarvis || {}, patch) });
+    $('#jvOn').addEventListener('click', () => jv({ enabled: !(S.jarvis ? S.jarvis.enabled !== false : true) }));
+    $('#jvVoice').addEventListener('click', () => jv({ voice: !(S.jarvis ? S.jarvis.voice !== false : true) }));
+    $('#jvEngine').addEventListener('click', (e) => { if (e.target.dataset.v) jv({ engine: e.target.dataset.v }); });
+    const saveName = () => { const n = $('#jvName').value.trim().slice(0, 20) || 'Jarvis'; $('#jvName').value = n; jv({ name: n }); Galaxy.send({ type: 'toast', msg: 'Assistant renamed to ' + n }); };
+    $('#jvNameSave').addEventListener('click', saveName);
+    $('#jvName').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveName(); });
+    $('#jvTest').addEventListener('click', () => Galaxy.send({ type: 'jarvis-open' }));
+
+    // theme maker
+    const CTH = window.GalaxyCustomTheme;
+    const tmKeys = CTH.KEYS;
+    const tmCur = () => CTH.clean(S && S.customTheme);
+    let tmTimer = null, tmPend = null;
+    const tmSend = (c) => { tmPend = Object.assign(tmPend || {}, c); if (tmTimer) return; tmTimer = setTimeout(() => { tmTimer = null; const p = tmPend; tmPend = null; Galaxy.set({ customTheme: p, theme: 'custom' }); }, 70); };   // live, but not on every pixel of a color drag
+    tmKeys.forEach((k) => {
+      $('#tm' + k).addEventListener('input', (e) => { $('#tm' + k + 'H').value = e.target.value; tmSend({ [k]: e.target.value }); });
+      $('#tm' + k + 'H').addEventListener('input', (e) => { let v = e.target.value.trim(); if (v && v[0] !== '#') v = '#' + v; if (CTH.hex2rgb(v)) { const hx = CTH.rgb2hex(CTH.hex2rgb(v)); $('#tm' + k).value = hx; tmSend({ [k]: hx }); } });
+    });
+    $('#tmFrom').addEventListener('click', () => {
+      const cs = getComputedStyle(document.documentElement), g = (n) => (cs.getPropertyValue(n) || '').trim();
+      const c = tmCur(); [['bg', '--color-bg'], ['accent', '--color-pin'], ['text', '--color-text'], ['window', '--color-window']].forEach(([k, v]) => { const r = CTH.hex2rgb(g(v)); if (r) c[k] = CTH.rgb2hex(r); });
+      tmSend(c);
+    });
+    $('#tmRand').addEventListener('click', () => {
+      const h = Math.floor(Math.random() * 360), hsl = (hh, s, l) => { s /= 100; l /= 100; const a = s * Math.min(l, 1 - l), f = (n) => { const k = (n + hh / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return CTH.rgb2hex([f(0) * 255, f(8) * 255, f(4) * 255]); };
+      tmSend({ bg: hsl(h, 40, 6), accent: hsl(h, 70, 62), text: hsl(h, 25, 90), window: hsl(h, 50, 45) });
+    });
+    $('#tmReset').addEventListener('click', () => tmSend(Object.assign({}, CTH.DEF)));
+    $('#tmCopy').addEventListener('click', () => {
+      const code = CTH.encode(tmCur()), inp = $('#tmCode');
+      const done = () => Galaxy.send({ type: 'toast', msg: 'Theme code copied' });
+      inp.value = code; inp.select();
+      (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(code).then(done, () => { document.execCommand('copy'); done(); }) : (document.execCommand('copy'), done()));
+    });
+    $('#tmApply').addEventListener('click', () => {
+      const c = CTH.decode($('#tmImp').value);
+      if (!c) { Galaxy.send({ type: 'toast', msg: 'That is not a valid theme code' }); return; }
+      $('#tmImp').value = ''; tmSend(c); Galaxy.send({ type: 'toast', msg: 'Theme applied' });
+    });
+
+    // tab cloak
+    const clGrid = $('#cloakGrid');
+    Galaxy.CLOAKS.forEach((c) => {
+      const b = document.createElement('button');
+      b.className = 'cloak'; b.dataset.id = c.id;
+      b.innerHTML = '<img alt=""><div><b></b><small></small></div>';
+      b.querySelector('img').src = 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(c.domain);
+      b.querySelector('img').addEventListener('error', (e) => { e.target.style.visibility = 'hidden'; });
+      b.querySelector('b').textContent = c.name; b.querySelector('small').textContent = c.title;
+      b.addEventListener('click', () => Galaxy.set({ tabCloak: { id: c.id, title: c.title, domain: c.domain } }));
+      clGrid.appendChild(b);
+    });
+    const siteOf = (v) => { v = String(v || '').trim(); if (!v) return ''; try { return new URL(/^https?:\/\//i.test(v) ? v : 'https://' + v).hostname; } catch (e) { return ''; } };
+    $('#clApply').addEventListener('click', () => { const t = $('#clTitle').value.trim(); if (!t) { Galaxy.send({ type: 'toast', msg: 'Type a window title first' }); return; } Galaxy.set({ tabCloak: { id: 'custom', title: t.slice(0, 80), domain: siteOf($('#clSite').value) } }); });
+    $('#clReset').addEventListener('click', () => Galaxy.set({ tabCloak: { id: '', title: '', domain: '' } }));
+
+    // boot logo
+    const bootCur = () => Object.assign({ text: 'Galaxy OS', image: '', sub: null }, (S && S.boot) || {});
+    const bootSet = (patch) => Galaxy.set({ boot: patch });
+    $('#bootTextSave').addEventListener('click', () => bootSet({ text: $('#bootText').value.trim().slice(0, 16) || 'Galaxy OS' }));
+    $('#bootText').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#bootTextSave').click(); });
+    $('#bootSubSave').addEventListener('click', () => bootSet({ sub: $('#bootSub').value.trim().slice(0, 40) }));
+    $('#bootSubDef').addEventListener('click', () => bootSet({ sub: null }));
+    $('#bootPick').addEventListener('click', () => $('#bootFile').click());
+    $('#bootClearImg').addEventListener('click', () => bootSet({ image: '' }));
+    $('#bootFile').addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0]; e.target.value = '';
+      if (!f) return;
+      const url = URL.createObjectURL(f), im = new Image();
+      im.onload = () => {
+        let side = 480, out = '';
+        for (let i = 0; i < 4 && !out; i++, side = Math.round(side / 1.6)) {
+          const k = Math.min(1, side / Math.max(im.naturalWidth, im.naturalHeight, 1)), c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(im.naturalWidth * k)); c.height = Math.max(1, Math.round(im.naturalHeight * k));
+          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+          const d = c.toDataURL('image/png'), w = c.toDataURL('image/webp', .9);
+          const best = w.startsWith('data:image/webp') && w.length < d.length ? w : d;
+          if (best.length < 320000) out = best;
+        }
+        URL.revokeObjectURL(url);
+        if (!out) { Galaxy.send({ type: 'toast', msg: 'That image is too large to save' }); return; }
+        bootSet({ image: out });
+      };
+      im.onerror = () => { URL.revokeObjectURL(url); Galaxy.send({ type: 'toast', msg: "Couldn't read that image" }); };
+      im.src = url;
+    });
+    $('#bootPlay').addEventListener('click', () => Galaxy.send({ type: 'intro-preview' }));
+    $('#bootReset').addEventListener('click', () => Galaxy.set({ boot: { text: 'Galaxy OS', image: '', sub: null } }));
+    void bootCur;
+
+    // shortcuts
+    const BASEAPPS = [['browser', 'Browser'], ['gfn', 'GeForce NOW'], ['roblox', 'Roblox'], ['cyberpunk', 'Cyberpunk'], ['terraria', 'Terraria'], ['fortnite', 'Fortnite'], ['chatgpt', 'ChatGPT'], ['tiktok', 'TikTok'], ['games', 'Game Hub'], ['notes', 'Notes'], ['music', 'Spotify'], ['player', 'Player'], ['apps', 'Apps (start)'], ['settings', 'Settings'], ['devconsole', 'Dev Console']];
+    const allApps = () => BASEAPPS.concat((S.customApps || []).map((c) => [c.id, c.name || c.url]));
+    let scKey = null, scSel = 'settings';
+    const fmt = (k) => !k || !k.key ? '' : [k.ctrl && 'Ctrl', k.alt && 'Alt', k.shift && 'Shift', k.meta && 'Meta', k.key === ' ' ? 'Space' : k.key.length === 1 ? k.key.toUpperCase() : k.key].filter(Boolean).join(' + ');
+    const sameK = (a, b) => a && b && a.key.toLowerCase() === b.key.toLowerCase() && !!a.ctrl === !!b.ctrl && !!a.alt === !!b.alt && !!a.shift === !!b.shift && !!a.meta === !!b.meta;
+    function renderSc() {
+      const sel = $('#scApp'), apps = allApps();
+      if (document.activeElement !== sel) {
+        sel.innerHTML = '';
+        apps.forEach(([id, name]) => { const o = document.createElement('option'); o.value = id; o.textContent = name; sel.appendChild(o); });
+        sel.value = scSel;
+      }
+      if (document.activeElement !== $('#scKey')) { scKey = (S.shortcuts || {})[scSel] || null; $('#scKey').value = fmt(scKey); }
+      const list = $('#scList'); list.innerHTML = '';
+      const entries = Object.entries(S.shortcuts || {}).filter(([id]) => apps.some((a) => a[0] === id));
+      if (!entries.length) list.innerHTML = '<p>No shortcuts set.</p>';
+      entries.forEach(([id, k]) => {
+        const r = document.createElement('div');
+        r.style.cssText = 'display:flex;align-items:center;gap:12px;padding:6px 0;border-top:1px solid var(--color-border)';
+        const n = document.createElement('span'); n.style.flex = '1'; n.textContent = apps.find((a) => a[0] === id)[1];
+        const kb = document.createElement('code'); kb.textContent = fmt(k);
+        const x = document.createElement('button'); x.className = 'flat'; x.textContent = 'Remove';
+        x.onclick = () => { const sc = { ...S.shortcuts }; delete sc[id]; Galaxy.set({ shortcuts: sc }); };
+        r.append(n, kb, x); list.appendChild(r);
+      });
+    }
+    $('#scApp').addEventListener('change', (e) => { scSel = e.target.value; scKey = (S.shortcuts || {})[scSel] || null; $('#scKey').value = fmt(scKey); });
+    $('#scKey').addEventListener('focus', (e) => { e.target.value = ''; e.target.placeholder = 'Press keys...'; });
+    $('#scKey').addEventListener('blur', (e) => { e.target.value = fmt(scKey); });
+    $('#scKey').addEventListener('keydown', (e) => {
+      if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+      e.preventDefault(); e.stopPropagation();
+      if (e.key !== 'Escape' && e.key !== 'Backspace') scKey = { key: e.key, ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey, meta: e.metaKey };
+      e.target.blur();
+    });
+    $('#scSave').addEventListener('click', () => {
+      if (!scKey) { $('#scKey').focus(); return; }
+      const sc = {};
+      Object.entries(S.shortcuts || {}).forEach(([id, k]) => { if (!sameK(k, scKey)) sc[id] = k; }); // one app per key
+      sc[scSel] = scKey;
+      Galaxy.set({ shortcuts: sc });
+      Galaxy.send({ type: 'toast', msg: 'Shortcut saved' });
+    });
+    $('#scClear').addEventListener('click', () => { const sc = { ...S.shortcuts }; delete sc[scSel]; scKey = null; Galaxy.set({ shortcuts: sc }); });
+
+    // quick key
+    let qk = null;
+    const fmtKey = (k) => !k || !k.key ? '' : [k.ctrl && 'Ctrl', k.alt && 'Alt', k.shift && 'Shift', k.meta && 'Meta', k.key === ' ' ? 'Space' : k.key.length === 1 ? k.key.toUpperCase() : k.key].filter(Boolean).join(' + ');
+    $('#qkKey').addEventListener('focus', (e) => { e.target.value = ''; e.target.placeholder = 'Press a key...'; });
+    $('#qkKey').addEventListener('blur', (e) => { e.target.value = fmtKey(qk); });
+    $('#qkKey').addEventListener('keydown', (e) => {
+      if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+      e.preventDefault(); e.stopPropagation();
+      if (e.key !== 'Escape' && e.key !== 'Backspace') qk = { key: e.key, ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey, meta: e.metaKey };
+      e.target.blur();
+    });
+    $('#qkOn').addEventListener('click', () => Galaxy.set({ quickKey: { ...S.quickKey, on: !(S.quickKey && S.quickKey.on) } }));
+    $('#qkSave').addEventListener('click', () => {
+      if (!qk) { $('#qkKey').focus(); return; }
+      Galaxy.set({ quickKey: { on: true, ...qk, url: $('#qkUrl').value.trim() || 'https://www.google.com' } });
+      Galaxy.send({ type: 'toast', msg: 'Quick key saved' });
+    });
+
+    // export / import
+    $('#exportBtn').addEventListener('click', () => Galaxy.send({ type: 'export-settings' }));
+    $('#importBtn').addEventListener('click', () => $('#importFile').click());
+    $('#importFile').addEventListener('change', (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = () => Galaxy.send({ type: 'import-settings', text: String(r.result) });
+      r.readAsText(f); e.target.value = '';
+    });
+
+    // proxy
+    $('#engines').addEventListener('click', (e) => { if (e.target.dataset.e) Galaxy.set({ engine: e.target.dataset.e }); });
+    $('#proxyApply').addEventListener('click', () => {});
+    $('#proxyTest').addEventListener('click', async () => { const r = $('#proxyRes'); r.textContent = 'Testing...'; try { const x = await fetch('/health'); r.textContent = x.ok ? 'Proxy server is up' : 'Server answered ' + x.status; } catch (e) { r.textContent = 'Cannot reach the server'; } });
+
+    // data
+    $('#clearData').addEventListener('click', () => Galaxy.send({ type: 'clear-data' }));
+    $('#reset').addEventListener('click', () => Galaxy.send({ type: 'reset-settings' }));
+
+    // display
+    const NIGHT0 = { mode: 'off', from: '21:00', to: '07:00', warmth: 55, dim: 10 };
+    const nightOf = () => Object.assign({}, NIGHT0, S.night || {});
+    const setNight = (p) => Galaxy.set({ night: Object.assign(nightOf(), p) });
+    $('#brSlider').addEventListener('input', (e) => Galaxy.set({ brightness: +e.target.value }));
+    $('#nlMode').addEventListener('click', (e) => { if (e.target.dataset.m) setNight({ mode: e.target.dataset.m }); });
+    $('#nlFrom').addEventListener('change', (e) => setNight({ from: e.target.value || NIGHT0.from }));
+    $('#nlTo').addEventListener('change', (e) => setNight({ to: e.target.value || NIGHT0.to }));
+    $('#nlWarm').addEventListener('input', (e) => setNight({ warmth: +e.target.value }));
+    $('#nlDim').addEventListener('input', (e) => setNight({ dim: +e.target.value }));
+    $('#batToastBtn').addEventListener('click', () => Galaxy.set({ batteryToast: S.batteryToast === false }));
+    $('#batLevel').addEventListener('click', (e) => { if (e.target.dataset.v) Galaxy.set({ batteryLevel: +e.target.dataset.v }); });
+    $('#batTest').addEventListener('click', () => Galaxy.send({ type: 'battery-test' }));
+    function paintDisplaySec(s) {
+      const N = Object.assign({}, NIGHT0, s.night || {});
+      const val = (el, v) => { if (document.activeElement !== el) el.value = v; };
+      const B = Math.min(100, Math.max(20, +s.brightness || 100));
+      val($('#brSlider'), B); $('#brVal').textContent = B + '%';
+      document.querySelectorAll('#nlMode .pill').forEach((x) => x.classList.toggle('on', x.dataset.m === N.mode));
+      $('#nlSched').style.opacity = N.mode === 'schedule' ? '' : '.4';
+      val($('#nlFrom'), N.from); val($('#nlTo'), N.to); val($('#nlWarm'), N.warmth); val($('#nlDim'), N.dim);
+      $('#nlWarmV').textContent = N.warmth + '%'; $('#nlDimV').textContent = N.dim + '%';
+      $('#batToastBtn').classList.toggle('on', s.batteryToast !== false);
+      document.querySelectorAll('#batLevel .pill').forEach((x) => x.classList.toggle('on', +x.dataset.v === (+s.batteryLevel || 20)));
+    }
+
+    Galaxy.onSettings((s) => {
+      S = s;
+      paintDisplaySec(s);
+      document.querySelectorAll('.theme').forEach((x) => x.classList.toggle('on', x.dataset.t === s.theme));
+      document.querySelectorAll('.bg').forEach((x) => x.classList.toggle('on', !s.customBg && x.dataset.b === s.bg));
+      document.querySelectorAll('#engines .pill').forEach((x) => x.classList.toggle('on', x.dataset.e === s.engine));
+      document.querySelectorAll('.bst').forEach((x) => x.classList.toggle('on', x.dataset.b === (s.browserStyle === 'theme' ? 'theme' : 'glass')));
+      document.querySelectorAll('#dockPos .pill').forEach((x) => x.classList.toggle('on', x.dataset.v === (s.dockPos || 'bottom')));
+      document.querySelectorAll('#dockSize .pill').forEach((x) => x.classList.toggle('on', x.dataset.v === (s.dockSize || 'md')));
+      { const j = s.jarvis || {}, on = j.enabled !== false;
+        $('#jvOn').classList.toggle('on', on); $('#jvOn').textContent = on ? 'Jarvis enabled' : 'Jarvis disabled';
+        $('#jvVoice').classList.toggle('on', j.voice !== false);
+        document.querySelectorAll('#jvEngine .pill').forEach((x) => x.classList.toggle('on', x.dataset.v === (j.engine || 'auto')));
+        if (document.activeElement !== $('#jvName')) $('#jvName').value = j.name || 'Jarvis'; }
+      { const c = CTH.clean(s.customTheme), cur = document.activeElement;
+        tmKeys.forEach((k) => { if (cur !== $('#tm' + k)) $('#tm' + k).value = c[k]; if (cur !== $('#tm' + k + 'H')) $('#tm' + k + 'H').value = c[k]; });
+        if (cur !== $('#tmCode')) $('#tmCode').value = CTH.encode(c);
+        const tc = s.tabCloak || {};
+        document.querySelectorAll('.cloak').forEach((x) => x.classList.toggle('on', x.dataset.id === tc.id));
+        if (cur !== $('#clTitle')) $('#clTitle').value = tc.id === 'custom' ? tc.title : '';
+        if (cur !== $('#clSite')) $('#clSite').value = tc.id === 'custom' ? tc.domain : '';
+        const bt = Object.assign({ text: 'Galaxy OS', image: '', sub: null }, s.boot || {});
+        if (cur !== $('#bootText')) $('#bootText').value = bt.text;
+        if (cur !== $('#bootSub')) $('#bootSub').value = bt.sub === null || bt.sub === undefined ? '' : bt.sub;
+        $('#bootPrev').innerHTML = bt.image ? '<img alt="">' : '<span style="color:var(--color-text-subtle);font-size:12px">No image</span>';
+        if (bt.image) $('#bootPrev img').src = bt.image; }
+      $('#animBtn').classList.toggle('on', s.anim !== false);
+      $('#dynBtn').classList.toggle('on', !!s.dynTheme);
+      $('#abAuto').classList.toggle('on', !!s.autoAB);
+      $('#blobAuto').classList.toggle('on', !!s.autoBlob);
+      $('#anti').classList.toggle('on', !!s.antiClose);
+      renderSc();
+      const q = s.quickKey || {};
+      $('#qkOn').classList.toggle('on', !!q.on);
+      if (document.activeElement !== $('#qkKey')) { qk = q.key ? { key: q.key, ctrl: !!q.ctrl, alt: !!q.alt, shift: !!q.shift, meta: !!q.meta } : null; $('#qkKey').value = fmtKey(qk); }
+      if (document.activeElement !== $('#qkUrl')) $('#qkUrl').value = q.url || '';
+      if (document.activeElement !== $('#proxyIn')) $('#proxyIn').value = s.proxy || '';
+    });
+
+    // about (versions come from the main process through the shell is not exposed to iframes, so read from UA)
+    const ua = navigator.userAgent;
+    const m = (re) => (ua.match(re) || [, 'unknown'])[1];
+    const rows = [['Galaxy OS', '1.7.0 (web)'], ['Chromium', m(/Chrome\/([\d.]+)/)]];
+    $('#ver').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+  </script>
+</body>
+</html>

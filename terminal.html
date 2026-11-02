@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="violet">
+<head>
+  <meta charset="UTF-8">
+  <title>Terminal</title>
+  <link rel="stylesheet" href="../theme.css">
+  <link rel="stylesheet" href="../base.css">
+  <link rel="stylesheet" href="app.css">
+  <style>
+    body { --tbg: rgba(8, 5, 16, .94); --tfg: #e9e4f5; --tacc: var(--color-pin, #c084fc); --tdim: #8c84a3; --terr: #ff7b8a; --tok: #7ee2a8; --tcur: #fff; display: flex; flex-direction: column; overflow: hidden; background: var(--tbg); font-family: 'Cascadia Code', Consolas, 'Courier New', monospace; font-size: 13.5px; }
+    #out { flex: 1; overflow-y: auto; padding: 14px 16px 6px; white-space: pre-wrap; word-break: break-word; line-height: 1.5; color: var(--tfg); user-select: text; }
+    #out::-webkit-scrollbar { width: 8px; } #out::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); border-radius: 4px; }
+    .ln { min-height: 1.5em; }
+    .acc { color: var(--tacc); }
+    .dim { color: var(--tdim); }
+    .err { color: var(--terr); }
+    .ok { color: var(--tok); }
+    .ps { color: var(--tacc); font-weight: 700; }
+    #row { display: flex; gap: 8px; padding: 6px 16px 14px; align-items: center; }
+    #in { flex: 1; background: transparent; border: none; outline: none; color: var(--tcur); font: inherit; caret-color: var(--tacc); padding: 0; }
+    #mx { position: fixed; inset: 0; z-index: 5; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="out"></div>
+  <div id="row"><span class="ps" id="ps">galaxy&gt;</span><input id="in" autocomplete="off" spellcheck="false" autofocus></div>
+  <script src="common.js"></script>
+  <script>
+  (function () {
+    const out = document.getElementById('out'), inp = document.getElementById('in');
+    let S = null, pending = {}, seq = 0;
+    const hist = (() => { try { return JSON.parse(localStorage.getItem('galaxy.term.hist') || '[]'); } catch (e) { return []; } })();
+    let hi = hist.length;
+    const THEMES = ['glass','crimson','ember-dusk','terracotta','tangerine','amber-haze','marigold','citron','olive-grove','clover','fern-hollow','emerald','eucalyptus','aqua','glacier','azure','indigo-veil','violet','amethyst-smoke','plum-velvet','fuchsia','orchid-smoke','rosewood','default','custom'];
+    const SNAPS = {
+      left: [0, 0, .5, 1], right: [.5, 0, .5, 1], top: [0, 0, 1, .5], bottom: [0, .5, 1, .5],
+      tl: [0, 0, .5, .5], tr: [.5, 0, .5, .5], bl: [0, .5, .5, .5], br: [.5, .5, .5, .5],
+      'left-2/3': [0, 0, 2 / 3, 1], 'right-1/3': [2 / 3, 0, 1 / 3, 1], 'left-1/3': [0, 0, 1 / 3, 1], 'right-2/3': [1 / 3, 0, 2 / 3, 1], center: [1 / 6, 1 / 6, 2 / 3, 2 / 3]
+    };
+    SNAPS.max = null; SNAPS.maximize = null;
+
+    Galaxy.onSettings((s) => { S = s; });
+
+    const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    let cap = null;   // while a command runs on the left of a pipe, its lines are collected here
+    function print(html, cls) {
+      if (cap) { const t = document.createElement('div'); t.innerHTML = html; cap.push(t.textContent); return; }
+      const d = document.createElement('div');
+      d.className = 'ln' + (cls ? ' ' + cls : '');
+      d.innerHTML = html === '' ? '&nbsp;' : html;
+      out.appendChild(d);
+      out.scrollTop = out.scrollHeight;
+    }
+    const text = (s, cls) => print(esc(s), cls);
+    const err = (s) => text(s, 'err');
+    const ok = (s) => text(s, 'ok');
+
+    // ask the shell for something and wait for the answer
+    function ask(cmd, extra) {
+      return new Promise((res) => {
+        const id = ++seq;
+        pending[id] = res;
+        Galaxy.send(Object.assign({ type: 'term', id, cmd }, extra || {}));
+        setTimeout(() => { if (pending[id]) { delete pending[id]; res(null); } }, 2500);
+      });
+    }
+    addEventListener('message', (e) => {
+      const d = e.data;
+      if (d && d.type === 'term-reply' && pending[d.id]) { const r = pending[d.id]; delete pending[d.id]; r(d.data); }
+    });
+
+    // match an app by id or (partial) name
+    function findApp(apps, q) {
+      q = String(q || '').toLowerCase().replace(/\s+/g, '');
+      if (!q) return null;
+      return apps.find((a) => a.id.toLowerCase() === q) || apps.find((a) => a.name.toLowerCase().replace(/\s+/g, '') === q) ||
+        apps.find((a) => a.id.toLowerCase().startsWith(q) || a.name.toLowerCase().replace(/\s+/g, '').startsWith(q)) || null;
+    }
+    const pad = (s, n) => (s + ' '.repeat(n)).slice(0, n);
+
+    const HELP = [
+      ['help', 'show this list'],
+      ['ls [apps|themes|wallpapers|windows]', 'list things (default: apps)'],
+      ['open <app>', 'open an app, e.g.  open browser'],
+      ['close [app|all]', 'close an app (default: the focused window)'],
+      ['theme [name|list]', 'show or change the theme'],
+      ['wallpaper [name|next|list]', 'show or change the wallpaper'],
+      ['snap <left|right|top|bottom|tl|tr|bl|br|max|center|left-2/3|right-1/3> [app]', 'snap a window'],
+      ['arrange <grid|side|cascade>', 'tidy every window at once'],
+      ['dynamic [on|off]', 'accent color from the wallpaper'],
+      ['intro [on|off|play]', 'the Galaxy OS startup animation'],
+      ['shutdown | restart', 'play the logo animation, then power off or reload Galaxy OS'],
+      ['termtheme [name|list]', 'terminal colors: galaxy, matrix, amber, dracula, ice, sunset, paper, retro'],
+      ['matrix [seconds] [green|blue|red|pink|rainbow]', 'falling code (click or press a key to stop)'],
+      ['cowsay [-f cow|cat|ghost] <text>, cowthink, fortune, lolcat', 'fun stuff; they pipe: fortune | cowsay'],
+      ['cloak [list|<preset>|off|"title" site]', 'disguise the window title and icon'],
+      ['neofetch', 'system info'],
+      ['clear', 'clear the screen'],
+      ['echo, date, whoami, history', 'the usual']
+    ];
+
+    /* ----- terminal color themes ----- */
+    const TTHEMES = {
+      galaxy: { d: 'the default (follows your accent color)', v: {} },
+      matrix: { d: 'green on black', v: { '--tbg': 'rgba(0,10,2,.96)', '--tfg': '#7dff9a', '--tacc': '#00ff55', '--tdim': '#2f9a4d', '--terr': '#ff5f5f', '--tok': '#b6ffc8', '--tcur': '#c8ffd6' } },
+      amber: { d: 'old amber monitor', v: { '--tbg': 'rgba(18,10,0,.96)', '--tfg': '#ffb84d', '--tacc': '#ffd27a', '--tdim': '#a8742a', '--terr': '#ff7b5c', '--tok': '#ffe29a', '--tcur': '#ffe9b8' } },
+      dracula: { d: 'purple and pink', v: { '--tbg': 'rgba(40,42,54,.97)', '--tfg': '#f8f8f2', '--tacc': '#bd93f9', '--tdim': '#6272a4', '--terr': '#ff5555', '--tok': '#50fa7b', '--tcur': '#f8f8f2' } },
+      ice: { d: 'cool cyan', v: { '--tbg': 'rgba(4,16,26,.96)', '--tfg': '#d6f3ff', '--tacc': '#5ad7ff', '--tdim': '#5f8aa0', '--terr': '#ff8a9a', '--tok': '#8fffd2', '--tcur': '#ffffff' } },
+      sunset: { d: 'warm orange and pink', v: { '--tbg': 'rgba(28,10,22,.96)', '--tfg': '#ffe3d6', '--tacc': '#ff7a9c', '--tdim': '#b0707e', '--terr': '#ff6b6b', '--tok': '#ffc46b', '--tcur': '#fff1e8' } },
+      paper: { d: 'light mode', v: { '--tbg': 'rgba(250,248,242,.98)', '--tfg': '#2b2b33', '--tacc': '#6a3fd0', '--tdim': '#8a8795', '--terr': '#c62f48', '--tok': '#1f8a4c', '--tcur': '#000000' } },
+      retro: { d: 'white on blue', v: { '--tbg': 'rgba(0,0,170,.97)', '--tfg': '#ffffff', '--tacc': '#ffff55', '--tdim': '#9a9aff', '--terr': '#ff8080', '--tok': '#55ff55', '--tcur': '#ffffff' } }
+    };
+    let curTheme = 'galaxy';
+    function setTTheme(k, save) {
+      const t = TTHEMES[k] || TTHEMES.galaxy;
+      ['--tbg', '--tfg', '--tacc', '--tdim', '--terr', '--tok', '--tcur'].forEach((v) => document.body.style.removeProperty(v));
+      Object.keys(t.v).forEach((v) => document.body.style.setProperty(v, t.v[v]));
+      curTheme = TTHEMES[k] ? k : 'galaxy';
+      if (save !== false) { try { localStorage.setItem('galaxy.term.theme', curTheme); } catch (e) {} }
+    }
+    try { setTTheme(localStorage.getItem('galaxy.term.theme') || 'galaxy', false); } catch (e) {}
+
+    /* ----- fortune, cowsay ----- */
+    const FORTUNES = [
+      'A bug in the hand is worth two in production.', 'There is no place like 127.0.0.1.', 'You will soon open the right app on the first try.',
+      'The best wallpaper is the one that is still loading.', 'Today is a good day to clear your cache.', 'Weeks of coding can save you hours of planning.',
+      'It works on my machine. Ship the machine.', 'Someone is about to say "have you tried turning it off and on again?"', 'Your next idea will fit in one file. Probably.',
+      'The cloud is just someone else\'s computer. Be kind to it.', 'A watched build never finishes.', 'You will merge a conflict and feel nothing.',
+      'Great things are built one tiny commit at a time.', 'Semicolons are the punctuation of the brave.', 'You are one npm install away from greatness.',
+      'Fortune favors the backed-up.', 'The shortest path between two bugs is a print statement.', 'Rest is part of the plan; go drink some water.',
+      'A new feature is on the horizon. It looks suspiciously like a good idea.', 'Dark mode is a lifestyle.', 'The galaxy is big, but your to-do list is bigger.',
+      'May your frame rate be high and your ping be low.', 'Someone out there is also staring at a blinking cursor.', 'Press Ctrl+H and ask for something nice.',
+      'Treat every error message as a clue, not an insult.', 'You will find what you are looking for in the last place you check.', 'Patience: the only dependency you cannot install.',
+      'Tabs or spaces? Yes.', 'Every expert was once a beginner who kept pressing keys.', 'Stars cannot shine without darkness. Neither can good UI.'
+    ];
+    const COWS = {
+      cow: ['        \\   ^__^', '         \\  (oo)\\_______', '            (__)\\       )\\/\\', '                ||----w |', '                ||     ||'],
+      cat: ['  \\', '   \\    /\\_/\\', '    \\  ( o.o )', '         > ^ <'],
+      ghost: ['   \\', '    \\   .-.', '       (o o)', '       | O \\', '        \\   \\', "         `~~~'"]
+    };
+    function cow(a, stdin, think) {
+      let kind = 'cow';
+      if (a[0] === '-f' && a[1]) { kind = a[1].toLowerCase(); a = a.slice(2); }
+      if (!COWS[kind]) return err('cowsay: unknown animal "' + kind + '" (cow, cat, ghost)');
+      const msg = (a.join(' ') || stdin || FORTUNES[Math.floor(Math.random() * FORTUNES.length)]).replace(/\s+/g, ' ').trim();
+      const W = 36, lines = []; let cur = '';
+      msg.split(' ').forEach((w) => { if ((cur + ' ' + w).trim().length > W && cur) { lines.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); });
+      if (cur) lines.push(cur);
+      const w = Math.max(...lines.map((l) => l.length)), o = think ? ['(', ')'] : ['<', '>'];
+      const out2 = [' ' + '_'.repeat(w + 2)];
+      lines.forEach((l, i) => { const L = lines.length === 1 ? o : i === 0 ? ['/', '\\'] : i === lines.length - 1 ? ['\\', '/'] : ['|', '|']; out2.push((think ? '( ' : L[0] + ' ') + l.padEnd(w) + (think ? ' )' : ' ' + L[1])); });
+      out2.push(' ' + '-'.repeat(w + 2));
+      const body = COWS[kind].map((l) => (think ? l.replace(/\\/g, 'o') : l));
+      out2.concat(body).forEach((l) => text(l));
+    }
+
+    /* ----- matrix rain ----- */
+    function runMatrix(secs, color) {
+      return new Promise((res) => {
+        const cv = document.createElement('canvas'); cv.id = 'mx'; document.body.appendChild(cv);
+        const c = cv.getContext('2d'); cv.width = innerWidth; cv.height = innerHeight;
+        const fs = 16, cols = Math.ceil(cv.width / fs), drops = Array.from({ length: cols }, () => Math.random() * -40);
+        const glyphs = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789ZXCVBNM<>+=*'.split('');
+        const hue = { green: 130, blue: 205, red: 355, pink: 320, gold: 45 };
+        let raf = 0, t0 = performance.now(), last = 0, done = false;
+        const stop = () => { if (done) return; done = true; cancelAnimationFrame(raf); removeEventListener('keydown', stop, true); cv.remove(); inp.focus(); res(); };
+        cv.addEventListener('click', stop); addEventListener('keydown', stop, true);
+        c.fillStyle = '#000'; c.fillRect(0, 0, cv.width, cv.height);
+        const frame = (now) => {
+          raf = requestAnimationFrame(frame);
+          if (now - last < 45) return; last = now;
+          if (secs && now - t0 > secs * 1000) return stop();
+          c.fillStyle = 'rgba(0,0,0,.12)'; c.fillRect(0, 0, cv.width, cv.height);
+          c.font = fs + 'px monospace';
+          for (let i = 0; i < cols; i++) {
+            const y = drops[i] * fs;
+            const h = color === 'rainbow' ? (i * 7 + now / 20) % 360 : (hue[color] == null ? 130 : hue[color]);
+            c.fillStyle = color === 'white' ? '#fff' : 'hsl(' + h + ',90%,85%)';
+            c.fillText(glyphs[Math.floor(Math.random() * glyphs.length)], i * fs, y);
+            c.fillStyle = color === 'white' ? '#bbb' : 'hsl(' + h + ',90%,50%)';
+            c.fillText(glyphs[Math.floor(Math.random() * glyphs.length)], i * fs, y - fs);
+            if (y > cv.height && Math.random() > .975) drops[i] = 0;
+            drops[i] += 1;
+          }
+        };
+        raf = requestAnimationFrame(frame);
+      });
+    }
+
+    const CMDS = {
+      help() { text('Galaxy Terminal — commands:', 'acc'); HELP.forEach(([c, d]) => print('  <span class="acc">' + esc(pad(c, 34)) + '</span> <span class="dim">' + esc(d) + '</span>')); },
+      clear() { out.innerHTML = ''; },
+      echo(a) { text(a.join(' ')); },
+      date() { text(new Date().toString()); },
+      whoami() { text('guest@galaxy'); },
+      history() { hist.forEach((h, i) => text(String(i + 1).padStart(3) + '  ' + h, 'dim')); },
+      async ls(a) {
+        const what = (a[0] || 'apps').toLowerCase();
+        if (what === 'themes') { text(THEMES.join('  ')); text('current: ' + (S ? S.theme : '?'), 'dim'); return; }
+        if (what === 'wallpapers' || what === 'bg' || what === 'backgrounds') { const r = await ask('bgs'); if (!r) return err('no answer from Galaxy OS'); text(r.list.join('  ')); text('current: ' + (r.custom ? 'custom image' : r.current), 'dim'); return; }
+        if (what === 'windows' || what === 'win') { const r = await ask('windows'); if (!r) return err('no answer from Galaxy OS'); if (!r.list.length) return text('no windows open', 'dim'); r.list.forEach((w) => print((w.focused ? '<span class="acc">*</span> ' : '  ') + esc(pad(w.id, 14)) + ' <span class="dim">' + esc(w.name + (w.min ? ' (minimized)' : '')) + '</span>')); return; }
+        if (what === 'apps' || what === 'app') {
+          const r = await ask('apps'); if (!r) return err('no answer from Galaxy OS');
+          r.list.forEach((x) => print((x.open ? '<span class="ok">●</span> ' : '  ') + '<span class="acc">' + esc(pad(x.id, 14)) + '</span> <span class="dim">' + esc(x.name) + '</span>'));
+          return;
+        }
+        err('ls: unknown "' + what + '". Try: apps, themes, wallpapers, windows');
+      },
+      async open(a) {
+        if (!a.length) return err('usage: open <app>   (see "ls")');
+        const r = await ask('apps'); if (!r) return err('no answer from Galaxy OS');
+        const app = findApp(r.list, a.join(' '));
+        if (!app) return err('open: no app called "' + a.join(' ') + '"');
+        Galaxy.openApp(app.id); ok('opening ' + app.name + '…');
+      },
+      async close(a) {
+        if (a[0] === 'all') { await ask('close', { target: '*' }); return ok('closed all windows'); }
+        let target = null;
+        if (a.length) { const r = await ask('apps'); const app = r && findApp(r.list, a.join(' ')); if (!app) return err('close: no app called "' + a.join(' ') + '"'); target = app.id; }
+        const r = await ask('close', { target });
+        if (r && r.ok) ok('closed ' + r.name); else err('close: ' + ((r && r.msg) || 'nothing to close'));
+      },
+      theme(a) {
+        if (!a.length) { text('theme: ' + (S ? S.theme : '?')); text('use "theme <name>" or "ls themes"', 'dim'); return; }
+        if (a[0] === 'list') return CMDS.ls(['themes']);
+        const q = a.join('-').toLowerCase();
+        const t = THEMES.find((x) => x === q) || THEMES.find((x) => x.startsWith(q)) || THEMES.find((x) => x.includes(q));
+        if (!t) return err('theme: unknown "' + a.join(' ') + '". Try "ls themes"');
+        Galaxy.set({ theme: t }); ok('theme → ' + t);
+      },
+      async wallpaper(a) {
+        const r = await ask('bgs'); if (!r) return err('no answer from Galaxy OS');
+        if (!a.length) { text('wallpaper: ' + (r.custom ? 'custom image' : r.current)); text('use "wallpaper <name>", "wallpaper next" or "ls wallpapers"', 'dim'); return; }
+        if (a[0] === 'list') return text(r.list.join('  '));
+        if (a[0] === 'next' || a[0] === 'random') {
+          const i = r.list.indexOf(r.current), n = a[0] === 'next' ? r.list[(i + 1) % r.list.length] : r.list[Math.floor(Math.random() * r.list.length)];
+          Galaxy.set({ bg: n, customBg: '' }); return ok('wallpaper → ' + n);
+        }
+        const q = a.join('-').toLowerCase(), n = r.list.find((x) => x === q) || r.list.find((x) => x.startsWith(q));
+        if (!n) return err('wallpaper: unknown "' + a.join(' ') + '". Try "ls wallpapers"');
+        Galaxy.set({ bg: n, customBg: '' }); ok('wallpaper → ' + n);
+      },
+      async snap(a) {
+        if (!a.length) return err('usage: snap <left|right|top|bottom|tl|tr|bl|br|max|center|left-2/3|right-1/3> [app]');
+        const side = a[0].toLowerCase();
+        if (side === 'restore') { const r = await ask('restore', { target: null }); return r && r.ok ? ok('restored ' + r.name) : err('snap: ' + ((r && r.msg) || 'nothing to restore')); }
+        if (!(side in SNAPS)) return err('snap: unknown position "' + a[0] + '"');
+        let target = null;
+        if (a[1]) { const r = await ask('apps'); const app = r && findApp(r.list, a.slice(1).join(' ')); if (!app) return err('snap: no app called "' + a.slice(1).join(' ') + '"'); target = app.id; }
+        const r = await ask('snap', { frame: SNAPS[side], target });
+        if (r && r.ok) ok(r.name + ' → ' + side); else err('snap: ' + ((r && r.msg) || 'no window to snap (open an app first)'));
+      },
+      async arrange(a) {
+        const m = { grid: 'grid', side: 'side', sidebyside: 'side', 'side-by-side': 'side', cascade: 'cascade', stack: 'stack', stacked: 'stack' }[(a[0] || '').toLowerCase()];
+        if (!m) return err('usage: arrange <grid|side|stack|cascade>');
+        const r = await ask('arrange', { mode: m }); r && r.ok ? ok('arranged ' + r.n + ' windows') : err('arrange: no windows to arrange');
+      },
+      dynamic(a) {
+        const on = a[0] ? ['on', 'true', '1', 'yes'].includes(a[0].toLowerCase()) : !(S && S.dynTheme);
+        Galaxy.set({ dynTheme: on }); ok('dynamic theme ' + (on ? 'on' : 'off'));
+      },
+      async intro(a) {
+        const m = (a[0] || '').toLowerCase();
+        if (m === 'off') { Galaxy.set({ intro: false }); return ok('startup animation off'); }
+        if (m === 'on') { Galaxy.set({ intro: true }); return ok('startup animation on'); }
+        if (m === 'play' || m === '') { await ask('intro'); return; }
+        err('usage: intro [on|off|play]   (now: ' + (S && S.intro === false ? 'off' : 'on') + ')');
+      },
+      termtheme(a) {
+        if (!a.length || a[0] === 'list') { text('terminal themes (current: ' + curTheme + '):', 'acc'); Object.keys(TTHEMES).forEach((k) => print('  <span class="acc">' + esc(pad(k, 10)) + '</span><span class="dim">' + esc(TTHEMES[k].d) + '</span>')); return; }
+        const q = a[0].toLowerCase(), k = Object.keys(TTHEMES).find((x) => x === q) || Object.keys(TTHEMES).find((x) => x.startsWith(q));
+        if (!k) return err('termtheme: unknown "' + a[0] + '". Try "termtheme list"');
+        setTTheme(k); ok('terminal theme → ' + k);
+      },
+      async matrix(a) {
+        let secs = 0, col = 'green';
+        a.forEach((w) => { if (/^\d+$/.test(w)) secs = Math.min(600, +w); else if (/^(green|blue|red|pink|rainbow|gold|white)$/i.test(w)) col = w.toLowerCase(); });
+        await runMatrix(secs, col);
+      },
+      cowsay(a, stdin) { cow(a, stdin, false); },
+      cowthink(a, stdin) { cow(a, stdin, true); },
+      fortune() { text(FORTUNES[Math.floor(Math.random() * FORTUNES.length)]); },
+      lolcat(a, stdin) {
+        const msg = a.join(' ') || stdin || 'Galaxy OS';
+        msg.split('\n').forEach((line) => { let h = ''; Array.from(line).forEach((ch, i) => { h += '<span style="color:hsl(' + ((i * 14 + Math.random() * 20) % 360) + ',90%,66%)">' + esc(ch) + '</span>'; }); print(h); });
+      },
+      cloak(a) {
+        const list = Galaxy.CLOAKS;
+        if (!a.length || a[0] === 'list') {
+          const cur = S && S.tabCloak && S.tabCloak.title ? S.tabCloak.title : 'none (Galaxy OS)';
+          text('current: ' + cur, 'dim');
+          list.forEach((c) => print('  <span class="acc">' + esc(pad(c.id, 10)) + '</span><span class="dim">' + esc(c.title) + '</span>'));
+          return text('use "cloak <name>", "cloak off" or  cloak "My title" site.com', 'dim');
+        }
+        if (a[0] === 'off' || a[0] === 'reset' || a[0] === 'none') { Galaxy.set({ tabCloak: { id: '', title: '', domain: '' } }); return ok('window back to Galaxy OS'); }
+        const q = a.join(' ').toLowerCase(), c = list.find((x) => x.id === q || x.name.toLowerCase() === q) || list.find((x) => x.id.startsWith(q) || x.name.toLowerCase().startsWith(q));
+        if (c) { Galaxy.set({ tabCloak: { id: c.id, title: c.title, domain: c.domain } }); return ok('window disguised as ' + c.name); }
+        if (a.length >= 1) { // cloak "My title" [site]
+          const site = a.length > 1 && /\./.test(a[a.length - 1]) ? a[a.length - 1] : '', title = (site ? a.slice(0, -1) : a).join(' ');
+          let domain = ''; try { if (site) domain = new URL(/^https?:/i.test(site) ? site : 'https://' + site).hostname; } catch (e) {}
+          Galaxy.set({ tabCloak: { id: 'custom', title: title.slice(0, 80), domain } }); return ok('window title → ' + title + (domain ? ' (icon from ' + domain + ')' : ''));
+        }
+      },
+      async shutdown() { await ask('power', { mode: 'shutdown' }); },
+      async restart() { await ask('power', { mode: 'restart' }); },
+      async neofetch() {
+        const r = await ask('info'); const s = S || {};
+        const L = [
+          '  ✦ ·  ˖     ', ' ·   ✧   ˖  ✦', '   ✦  ✧ ·    ', ' ˖   ·  ✦  ✧ ', '    ✧  ˖ ·   '
+        ];
+        const info = [
+          '<span class="acc">guest</span>@<span class="acc">galaxy</span>', '─────────────',
+          '<span class="acc">OS</span>       Galaxy OS ' + esc((r && r.version) || ''), '<span class="acc">Theme</span>    ' + esc(s.theme || '?'),
+          '<span class="acc">Wallpaper</span> ' + esc(s.customBg ? 'custom' : (s.bg || '?')), '<span class="acc">Windows</span>  ' + esc(r ? r.windows : '?') + ' open', '<span class="acc">Apps</span>     ' + esc(r ? r.apps : '?') + ' installed'
+        ];
+        for (let i = 0; i < Math.max(L.length, info.length); i++) print('<span class="acc">' + esc(L[i] || '              ') + '</span>  ' + (info[i] || ''));
+      }
+    };
+    CMDS.cls = CMDS.clear; CMDS.bg = CMDS.wallpaper; CMDS.apps = () => CMDS.ls(['apps']); CMDS.themes = () => CMDS.ls(['themes']);
+    CMDS.reboot = CMDS.restart; CMDS.poweroff = CMDS.shutdown; CMDS.launch = CMDS.start = CMDS.open; CMDS.exit = CMDS.quit = () => CMDS.close([]);
+
+    // split a command line into words, keeping "quoted phrases" together
+    const words = (s) => (s.match(/"[^"]*"|'[^']*'|\S+/g) || []).map((w) => w.replace(/^["']|["']$/g, ''));
+
+    async function run(line) {
+      print('<span class="ps">galaxy&gt;</span> ' + esc(line));
+      // one pipe is supported:  fortune | cowsay
+      const bar = line.indexOf('|');
+      if (bar > 0 && !/["']/.test(line.slice(0, bar).split('').filter((x) => x === '"' || x === "'").join('')) ) {
+        const a1 = words(line.slice(0, bar)), a2 = words(line.slice(bar + 1));
+        const f1 = a1.length && CMDS[a1[0].toLowerCase()], f2 = a2.length && CMDS[a2[0].toLowerCase()];
+        if (f1 && f2) {
+          cap = [];
+          try { await f1(a1.slice(1)); } catch (e) {}
+          const input = cap.join('\n'); cap = null;
+          try { await f2(a2.slice(1), input); } catch (e) { err('error: ' + (e && e.message)); }
+          return;
+        }
+      }
+      const w = words(line);
+      if (!w.length) return;
+      const name = w[0].toLowerCase(), fn = CMDS[name];
+      if (!fn) {
+        // typing an app name on its own opens it
+        const r = await ask('apps'); const app = r && findApp(r.list, w.join(' '));
+        if (app && w.join(' ').length > 2) { Galaxy.openApp(app.id); return ok('opening ' + app.name + '…'); }
+        return err(name + ': command not found. Type "help".');
+      }
+      try { await fn(w.slice(1)); } catch (e) { err('error: ' + (e && e.message)); }
+    }
+
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const v = inp.value; inp.value = '';
+        if (v.trim() && hist[hist.length - 1] !== v) { hist.push(v); if (hist.length > 100) hist.shift(); try { localStorage.setItem('galaxy.term.hist', JSON.stringify(hist)); } catch (x) {} }
+        hi = hist.length; run(v);
+      } else if (e.key === 'ArrowUp') { if (hi > 0) inp.value = hist[--hi]; e.preventDefault(); }
+      else if (e.key === 'ArrowDown') { hi = Math.min(hist.length, hi + 1); inp.value = hist[hi] || ''; e.preventDefault(); }
+      else if (e.key === 'l' && e.ctrlKey) { out.innerHTML = ''; e.preventDefault(); }
+      else if (e.key === 'Tab') {
+        e.preventDefault();
+        const v = inp.value, parts = v.split(/\s+/);
+        if (parts.length === 1) { const m = Object.keys(CMDS).filter((c) => c.startsWith(parts[0].toLowerCase())); if (m.length === 1) inp.value = m[0] + ' '; }
+        else if (parts[0] === 'theme') { const m = THEMES.filter((c) => c.startsWith(parts[1].toLowerCase())); if (m.length === 1) inp.value = 'theme ' + m[0]; }
+      }
+    });
+    document.addEventListener('mousedown', () => { if (!getSelection().toString()) setTimeout(() => inp.focus(), 0); });
+    addEventListener('focus', () => inp.focus());
+
+    print('<span class="acc">Galaxy Terminal</span> <span class="dim">— type "help" for commands, Tab completes, ↑ for history</span>');
+    print('');
+    inp.focus();
+  })();
+  </script>
+</body>
+</html>

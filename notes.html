@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="violet">
+<head>
+  <meta charset="UTF-8">
+  <title>Notes</title>
+  <link rel="stylesheet" href="../theme.css">
+  <link rel="stylesheet" href="../base.css">
+  <link rel="stylesheet" href="app.css">
+  <style>
+    body { display: flex; flex-direction: column; overflow: hidden; }
+    .bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+    .bar span { margin-left: auto; font-size: 12px; color: var(--color-text-subtle); }
+    textarea { flex: 1; resize: none; border: none; outline: none; padding: 16px 20px; background: var(--color-surface-3); color: var(--color-text); font-size: 15px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <button class="flat" id="dl">Download .txt</button>
+    <button class="flat" id="clear">Clear</button>
+    <span id="status">Saved</span>
+  </div>
+  <textarea id="t" placeholder="Start typing... notes save automatically." spellcheck="false"></textarea>
+  <script src="common.js"></script>
+  <script>
+    const t = document.getElementById('t'), st = document.getElementById('status');
+    const KEY = 'galaxy.notes';
+    try { t.value = localStorage.getItem(KEY) || ''; } catch (e) {}
+    let h;
+    t.addEventListener('input', () => {
+      st.textContent = 'Saving...';
+      clearTimeout(h);
+      h = setTimeout(() => { try { localStorage.setItem(KEY, t.value); } catch (e) {} st.textContent = 'Saved'; }, 400);
+    });
+    document.getElementById('clear').addEventListener('click', () => { t.value = ''; t.dispatchEvent(new Event('input')); });
+    document.getElementById('dl').addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([t.value], { type: 'text/plain' }));
+      a.download = 'galaxy-notes.txt';
+      a.click();
+    });
+  </script>
+</body>
+</html>

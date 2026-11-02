@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="violet">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Galaxy OS</title>
+  <link rel="icon" href="assets/icon.png">
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="os.css">
+</head>
+<body>
+  <div class="topNav noSelect">
+    <div class="topLeft"><p class="topNavText">Galaxy OS</p></div>
+    <div class="topRight">
+      <div class="topButton" id="profBtn" title="Your profile"><span class="pAv" id="profBtnAv"></span><i class="pDot" id="profBtnDot"></i></div>
+      <div class="topButton" id="dispBtn" title="Display &amp; night light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg></div>
+      <div class="topButton" id="powerBtn" title="Shut down / restart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.4 6.6a8 8 0 1011.2 0"/></svg></div>
+      <div class="topButton" id="showDesktop" title="Show desktop"><img src="../assets/icons/swap.png" alt=""></div>
+      <p id="clock"></p>
+    </div>
+  </div>
+  <div class="background" id="bg"></div>
+  <div id="desktop"></div>
+  <div class="nav"><div class="navStuff noSelect" id="dock"></div></div>
+  <div id="toast"></div>
+  <script src="galaxy-web.js"></script>
+  <script src="customtheme.js"></script>
+  <script src="livewall.js"></script>
+  <script src="intro.js"></script>
+  <script src="jarvis.js"></script>
+  <script src="accent.js"></script>
+  <script src="shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="violet">
+<head>
+  <meta charset="UTF-8">
+  <title>Dev Console</title>
+  <link rel="stylesheet" href="../theme.css">
+  <link rel="stylesheet" href="../base.css">
+  <link rel="stylesheet" href="app.css">
+  <style>
+    body { display: flex; flex-direction: column; overflow: hidden; font-size: 13px; }
+    .top, .tools { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--color-surface); border-bottom: 1px solid var(--color-border); flex-wrap: wrap; }
+    .tools { background: var(--color-surface-2); padding: 6px 12px; }
+    .sp { flex: 1; }
+    select.field { min-width: 190px; padding-right: 6px; }
+    .tabs { display: flex; gap: 4px; }
+    .tabs button, .chipf { padding: 5px 13px; border-radius: 8px; border: none; background: none; color: var(--color-text-muted); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+    .tabs button:hover, .chipf:hover { color: var(--color-text); }
+    .tabs button.on { background: var(--overlay-hover-strong); color: var(--color-text); }
+    .chipf { border: 1px solid var(--color-border); padding: 3px 11px; border-radius: 14px; font-size: 12px; }
+    .chipf.on { background: var(--color-pin); border-color: var(--color-pin); color: var(--color-text-dark, #111); }
+    .field.sm { min-width: 150px; height: 28px; }
+    .pane { display: none; flex: 1; min-height: 0; flex-direction: column; }
+    .pane.on { display: flex; }
+    #out { flex: 1; min-height: 0; overflow: auto; font: 12.5px/1.5 Consolas, 'Cascadia Mono', 'Courier New', monospace; background: var(--color-surface-3); }
+    .ln { display: flex; gap: 10px; padding: 2px 12px; border-bottom: 1px solid var(--color-border); align-items: baseline; }
+    .ln time { flex: none; color: var(--color-text-subtle); font-size: 11px; }
+    .ln .ap { flex: none; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 7px; border-radius: 9px; background: var(--overlay-hover-strong); color: var(--color-text-muted); font-size: 11px; font-weight: 600; }
+    .ln .tx { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .lv-info .tx { color: #6fb7ff; }
+    .lv-warn { background: rgba(240, 180, 40, .08); } .lv-warn .tx { color: #f0b429; }
+    .lv-error, .lv-err { background: rgba(229, 83, 75, .09); } .lv-error .tx, .lv-err .tx { color: #ff8179; }
+    .lv-net .tx { color: #4fd1c5; }
+    .lv-debug .tx { color: var(--color-text-muted); }
+    .lv-in .tx { color: var(--color-text-muted); }
+    .lv-out .tx { color: #9be28f; }
+    .empty { padding: 28px 18px; color: var(--color-text-subtle); text-align: center; line-height: 1.6; }
+    .repl { flex: none; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: var(--color-surface); border-top: 1px solid var(--color-border); }
+    .repl b { color: var(--color-pin); font-size: 16px; }
+    .repl input { flex: 1; height: 38px; border: none; background: none; outline: none; color: var(--color-text); font: 13px Consolas, 'Cascadia Mono', monospace; }
+    .split { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.2fr 1fr; }
+    #tree, #detail { overflow: auto; min-height: 0; }
+    #tree { border-right: 1px solid var(--color-border); background: var(--color-surface-3); font: 12.5px/1.55 Consolas, 'Cascadia Mono', monospace; padding: 6px 0; }
+    #detail { padding: 14px 16px; background: var(--color-surface-2); }
+    .nd { display: flex; align-items: baseline; gap: 4px; padding: 1px 8px 1px 0; cursor: default; white-space: nowrap; }
+    .nd:hover { background: var(--overlay-hover-strong); }
+    .nd.sel { background: var(--overlay-active); }
+    .nd .car { width: 12px; flex: none; text-align: center; cursor: pointer; color: var(--color-text-subtle); font-size: 10px; }
+    .nd .tg { color: #c792ea; } .nd .id { color: #ffcb6b; } .nd .cl { color: #82aaff; } .nd .tt { color: var(--color-text-subtle); margin-left: 8px; overflow: hidden; text-overflow: ellipsis; }
+    .kids[hidden] { display: none; }
+    #detail h4 { margin: 14px 0 6px; font-size: 11px; letter-spacing: .6px; text-transform: uppercase; color: var(--color-text-subtle); font-weight: 700; }
+    #detail h4:first-child { margin-top: 0; }
+    #detail table, #stbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+    #detail td, #stbl td { padding: 3px 6px; border-bottom: 1px solid var(--color-border); vertical-align: top; overflow-wrap: anywhere; }
+    #detail td:first-child { color: var(--color-text-muted); width: 38%; }
+    #detail pre { margin: 0; padding: 10px; border-radius: 8px; background: var(--color-surface-3); font: 11.5px/1.5 Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 200px; overflow: auto; }
+    .scroll { flex: 1; min-height: 0; overflow: auto; padding: 12px 16px; }
+    #stbl td:first-child { width: 28%; font-family: Consolas, monospace; color: var(--color-pin); }
+    #stbl td:nth-child(2) { font-family: Consolas, monospace; }
+    #stbl td:last-child { width: 70px; text-align: right; }
+    .mini { padding: 3px 10px; border-radius: 6px; border: none; background: var(--overlay-hover); color: var(--color-text-muted); font-size: 11px; cursor: pointer; }
+    .mini:hover { background: var(--color-danger-hover); color: #fff; }
+    .hint { font-size: 12px; color: var(--color-text-subtle); margin: 0 0 12px; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <select class="field" id="tgt"></select>
+    <div class="tabs" id="tabs">
+      <button data-t="console" class="on">Console</button>
+      <button data-t="inspect">Inspector</button>
+      <button data-t="storage">Storage</button>
+    </div>
+    <span class="sp"></span>
+    <button class="flat" id="bEdit" hidden>Edit code</button>
+    <button class="flat" id="bReload" hidden>Reload app</button>
+    <button class="flat" id="bTools" hidden>Open DevTools</button>
+  </div>
+
+  <section class="pane on" id="p-console">
+    <div class="tools" id="tools">
+      <button class="chipf on" data-f="all">All</button>
+      <button class="chipf" data-f="log">Log</button>
+      <button class="chipf" data-f="info">Info</button>
+      <button class="chipf" data-f="warn">Warnings</button>
+      <button class="chipf" data-f="error">Errors</button>
+      <button class="chipf" data-f="net">Network</button>
+      <input class="field sm" id="q" placeholder="Filter…" spellcheck="false">
+      <span class="sp"></span>
+      <label style="display:flex;align-items:center;gap:6px;color:var(--color-text-muted);font-size:12px"><input type="checkbox" id="auto" checked> Auto-scroll</label>
+      <button class="flat" id="clear">Clear</button>
+    </div>
+    <div id="out"></div>
+    <div class="repl"><b>›</b><input id="cmd" placeholder="Run JavaScript inside the selected custom app… (Enter, ↑ ↓ for history)" spellcheck="false" autocomplete="off"></div>
+  </section>
+
+  <section class="pane" id="p-inspect">
+    <div class="tools"><span style="color:var(--color-text-subtle);font-size:12px">Hover a node to highlight it in the app. Click to see its details.</span><span class="sp"></span><button class="flat" id="rTree">Refresh</button></div>
+    <div class="split"><div id="tree"></div><div id="detail"><div class="empty">Select an element.</div></div></div>
+  </section>
+
+  <section class="pane" id="p-storage">
+    <div class="tools"><span style="color:var(--color-text-subtle);font-size:12px">localStorage of the selected custom app (saved per app, survives restarts)</span><span class="sp"></span><button class="flat" id="rStore">Refresh</button><button class="flat" id="clrStore">Clear all</button></div>
+    <div class="scroll" id="sbox"></div>
+  </section>
+
+  <script src="common.js"></script>
+  <script>
+    (() => {
+      const $ = (s) => document.querySelector(s);
+      let logs = [], apps = [], tgt = '', filt = 'all', query = '', tab = 'console', reqN = 0, selId = -1, tgtSig = '';
+      const pend = {};
+      const send = (m) => Galaxy.send(m);
+      const kindOf = (id) => (id === 'galaxy' ? 'galaxy' : ((apps.find((x) => x.id === id) || {}).kind || ''));
+      const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+      const ask = (app, msg) => new Promise((res) => {
+        const req = ++reqN;
+        pend[req] = res;
+        send({ type: 'dev-cmd', app, msg: Object.assign({ req }, msg) });
+        setTimeout(() => { if (pend[req]) { delete pend[req]; res({ error: 'No answer. Is the app still open?' }); } }, 4000);
+      });
+      const note = (t) => el('div', 'empty', t);
+
+      /* ----- targets ----- */
+      function fillTargets() {
+        const names = {};
+        logs.forEach((e) => { names[e.app] = e.name; });
+        apps.forEach((a) => { names[a.id] = a.name; });
+        delete names.galaxy;
+        const open = new Set(apps.map((a) => a.id));
+        const ids = Object.keys(names).sort((a, b) => names[a].localeCompare(names[b]));
+        const sig = ids.map((i) => i + (open.has(i) ? '+' : '-')).join() + '|' + tgt;
+        if (sig !== tgtSig) {
+          tgtSig = sig;
+          const s = $('#tgt');
+          s.textContent = '';
+          const add = (v, t) => { const o = el('option', '', t); o.value = v; s.appendChild(o); };
+          add('', 'All apps');
+          add('galaxy', 'Galaxy OS (system)');
+          ids.forEach((i) => add(i, names[i] + (open.has(i) ? (kindOf(i) === 'html' ? '  · custom app' : '') : '  (closed)')));
+          s.value = tgt;
+        }
+        const k = kindOf(tgt);
+        $('#bEdit').hidden = k !== 'html';
+        $('#bReload').hidden = !(k === 'html' || k === 'web');
+        $('#bTools').hidden = k !== 'web';
+        $('#cmd').placeholder = k === 'html' ? 'Run JavaScript inside ' + ((apps.find((x) => x.id === tgt) || {}).name || 'the app') + '…  (Enter, ↑ ↓ for history)' : 'Pick one of your custom apps above to run JavaScript in it';
+      }
+      $('#tgt').addEventListener('change', (e) => { tgt = e.target.value; tgtSig = ''; fillTargets(); renderLogs(); refreshTab(); });
+
+      /* ----- console ----- */
+      const out = $('#out');
+      const pass = (e) => (!tgt || e.app === tgt)
+        && (filt === 'all' || ['in', 'out', 'err'].includes(e.level) || (filt === 'log' ? (e.level === 'log' || e.level === 'debug') : e.level === filt))
+        && (!query || (e.text + ' ' + e.name).toLowerCase().includes(query));
+      const stamp = (t) => { const d = new Date(t); return d.toLocaleTimeString([], { hour12: false }) + '.' + String(d.getMilliseconds()).padStart(3, '0'); };
+      function addRow(e) {
+        const near = out.scrollHeight - out.scrollTop - out.clientHeight < 40;
+        const row = el('div', 'ln lv-' + e.level);
+        row.append(el('time', '', stamp(e.t)));
+        if (!tgt) row.append(el('span', 'ap', e.name));
+        row.append(el('span', 'tx', e.text));
+        const emp = out.querySelector('.empty'); if (emp) emp.remove();
+        out.appendChild(row);
+        while (out.children.length > 900) out.firstChild.remove();
+        if ($('#auto').checked && near) out.scrollTop = out.scrollHeight;
+      }
+      function renderLogs() {
+        out.textContent = '';
+        const list = logs.filter(pass);
+        if (!list.length) { out.appendChild(note('Nothing logged yet. console.log, errors and network calls from your custom apps show up here, and so do warnings and errors from website apps.')); return; }
+        list.slice(-900).forEach(addRow);
+        out.scrollTop = out.scrollHeight;
+      }
+      function local(level, text) {
+        const e = { n: 0, t: Date.now(), app: tgt || 'galaxy', name: tgt ? ((apps.find((x) => x.id === tgt) || {}).name || tgt) : 'Console', level, text };
+        logs.push(e);
+        if (pass(e)) addRow(e);
+      }
+      $('#tools').addEventListener('click', (e) => {
+        const f = e.target.dataset.f;
+        if (!f) return;
+        filt = f;
+        document.querySelectorAll('.chipf').forEach((b) => b.classList.toggle('on', b.dataset.f === f));
+        renderLogs();
+      });
+      $('#q').addEventListener('input', (e) => { query = e.target.value.trim().toLowerCase(); renderLogs(); });
+      $('#clear').addEventListener('click', () => {
+        logs = logs.filter((e) => tgt && e.app !== tgt);
+        send({ type: 'dev-clear', app: tgt });
+        renderLogs();
+      });
+
+      const cmd = $('#cmd'), hist = [];
+      let hi = 0;
+      cmd.addEventListener('keydown', async (e) => {
+        if (e.key === 'ArrowUp') { if (hi > 0) cmd.value = hist[--hi]; e.preventDefault(); return; }
+        if (e.key === 'ArrowDown') { cmd.value = hi < hist.length - 1 ? hist[++hi] : ((hi = hist.length), ''); e.preventDefault(); return; }
+        if (e.key !== 'Enter') return;
+        const code = cmd.value.trim();
+        if (!code) return;
+        hist.push(code); hi = hist.length; cmd.value = '';
+        if (kindOf(tgt) !== 'html') { local('err', 'Pick one of your custom apps in the list above to run code in it.'); return; }
+        local('in', '› ' + code);
+        const r = await ask(tgt, { cmd: 'eval', code });
+        if (r.error) local('err', r.error); else local(r.ok ? 'out' : 'err', (r.ok ? '← ' : '✖ ') + r.out);
+      });
+
+      /* ----- inspector ----- */
+      function selectNode(row, id) {
+        document.querySelectorAll('.nd.sel').forEach((n) => n.classList.remove('sel'));
+        row.classList.add('sel');
+        selId = id;
+        showInfo(id);
+      }
+      function renderNode(n, depth) {
+        const wrap = el('div', 'nw');
+        const row = el('div', 'nd');
+        row.style.paddingLeft = (depth * 14 + 6) + 'px';
+        const has = n.kids && n.kids.length;
+        const car = el('span', 'car', has ? (depth < 2 ? '▾' : '▸') : '');
+        row.append(car, el('span', 'tg', '<' + n.tag + '>'));
+        if (n.attr) row.append(el('span', 'id', n.attr));
+        if (n.cls) row.append(el('span', 'cl', '.' + n.cls.split(/\s+/).slice(0, 3).join('.')));
+        if (n.text) row.append(el('span', 'tt', n.text));
+        if (n.more) row.append(el('span', 'tt', '… ' + n.more + ' more'));
+        wrap.appendChild(row);
+        const kids = el('div', 'kids');
+        kids.hidden = !!has && depth >= 2;
+        (n.kids || []).forEach((k) => kids.appendChild(renderNode(k, depth + 1)));
+        wrap.appendChild(kids);
+        car.addEventListener('click', (e) => { e.stopPropagation(); if (!has) return; kids.hidden = !kids.hidden; car.textContent = kids.hidden ? '▸' : '▾'; });
+        row.addEventListener('click', () => selectNode(row, n.id));
+        row.addEventListener('mouseenter', () => send({ type: 'dev-cmd', app: tgt, msg: { cmd: 'light', node: n.id, req: 0 } }));
+        return wrap;
+      }
+      async function loadTree() {
+        const box = $('#tree'), k = kindOf(tgt);
+        $('#detail').textContent = ''; $('#detail').appendChild(note('Select an element.'));
+        box.textContent = '';
+        if (k !== 'html') { box.appendChild(note(k === 'web' ? 'This is a website. Use "Open DevTools" (top right) for the full inspector.' : 'Pick one of your custom apps in the list above to inspect its page.')); return; }
+        box.appendChild(note('Loading…'));
+        const r = await ask(tgt, { cmd: 'tree' });
+        box.textContent = '';
+        if (!r.tree) { box.appendChild(note(r.error || 'Could not read the page.')); return; }
+        box.appendChild(renderNode(r.tree, 0));
+      }
+      $('#tree').addEventListener('mouseleave', () => { if (kindOf(tgt) === 'html') send({ type: 'dev-cmd', app: tgt, msg: { cmd: 'light', node: -1, req: 0 } }); });
+      async function showInfo(id) {
+        const d = $('#detail');
+        d.textContent = '';
+        const r = await ask(tgt, { cmd: 'info', node: id });
+        const i = r.info;
+        if (!i) { d.appendChild(note(r.error || 'That element is gone. Refresh the tree.')); return; }
+        const sec = (t) => d.appendChild(el('h4', '', t));
+        const table = (rows) => { const t = el('table'); rows.forEach(([a, b]) => { const tr = el('tr'); tr.append(el('td', '', a), el('td', '', b)); t.appendChild(tr); }); d.appendChild(t); };
+        sec('Element'); table([['Tag', '<' + i.tag + '>'], ['Box (x, y, w, h)', i.box.join(' × ')]]);
+        if (i.attrs.length) { sec('Attributes'); table(i.attrs); }
+        sec('Computed style'); table(i.css);
+        sec('HTML'); d.appendChild(el('pre', '', i.html));
+      }
+      $('#rTree').addEventListener('click', loadTree);
+
+      /* ----- storage ----- */
+      async function loadStorage() {
+        const box = $('#sbox'), k = kindOf(tgt);
+        box.textContent = '';
+        if (k !== 'html') { box.appendChild(note('Pick one of your custom apps in the list above to see its saved data.')); return; }
+        const r = await ask(tgt, { cmd: 'storage' });
+        drawStorage(r);
+      }
+      function drawStorage(r) {
+        const box = $('#sbox');
+        box.textContent = '';
+        if (!r.ls) { box.appendChild(note(r.error || 'Could not read the storage.')); return; }
+        const keys = Object.keys(r.ls);
+        if (!keys.length) { box.appendChild(note('Nothing saved. Use localStorage.setItem(key, value) in your app.')); return; }
+        const t = el('table'); t.id = 'stbl';
+        keys.forEach((key) => {
+          const tr = el('tr'), v = String(r.ls[key]);
+          const del = el('button', 'mini', 'Delete');
+          del.addEventListener('click', async () => drawStorage(await ask(tgt, { cmd: 'storage-del', key })));
+          const last = el('td'); last.appendChild(del);
+          tr.append(el('td', '', key), el('td', '', v.length > 300 ? v.slice(0, 300) + '…' : v), last);
+          t.appendChild(tr);
+        });
+        box.appendChild(t);
+        box.appendChild(el('p', 'hint', keys.length + ' item' + (keys.length === 1 ? '' : 's') + ', ' + keys.reduce((n, key) => n + key.length + String(r.ls[key]).length, 0) + ' characters'));
+      }
+      $('#rStore').addEventListener('click', loadStorage);
+      $('#clrStore').addEventListener('click', async () => { if (kindOf(tgt) === 'html') drawStorage(await ask(tgt, { cmd: 'storage-clear' })); });
+
+      /* ----- top buttons + tabs ----- */
+      $('#bEdit').addEventListener('click', () => send({ type: 'dev-edit', app: tgt }));
+      $('#bReload').addEventListener('click', () => send({ type: 'dev-reload', app: tgt }));
+      $('#bTools').addEventListener('click', () => send({ type: 'dev-devtools', app: tgt }));
+      function refreshTab() { if (tab === 'inspect') loadTree(); else if (tab === 'storage') loadStorage(); }
+      $('#tabs').addEventListener('click', (e) => {
+        const t = e.target.dataset.t;
+        if (!t) return;
+        tab = t;
+        document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
+        document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('on', p.id === 'p-' + t));
+        refreshTab();
+      });
+
+      /* ----- messages from Galaxy OS ----- */
+      addEventListener('message', (e) => {
+        const d = e.data;
+        if (!d || e.source !== parent) return;
+        if (d.type === 'dev-init') { logs = d.logs || []; apps = d.apps || []; fillTargets(); renderLogs(); }
+        else if (d.type === 'dev-apps') { apps = d.apps || []; fillTargets(); }
+        else if (d.type === 'dev-log') { logs.push(d.e); if (logs.length > 1500) logs.shift(); if (pass(d.e)) addRow(d.e); fillTargets(); }
+        else if (d.type === 'dev-res') { const f = pend[d.req]; if (f) { delete pend[d.req]; f(d.r || {}); } }
+      });
+      send({ type: 'dev-get' });
+      setInterval(() => send({ type: 'dev-apps' }), 1500);
+      fillTargets();
+      renderLogs();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="violet">
+<head>
+  <meta charset="UTF-8">
+  <title>Apps</title>
+  <link rel="stylesheet" href="../theme.css">
+  <link rel="stylesheet" href="../base.css">
+  <link rel="stylesheet" href="app.css">
+  <style>
+    .wrap { padding: 22px 28px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 14px; }
+    .app { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 8px 14px; cursor: pointer; color: var(--color-text); }
+    .app:hover { background: var(--overlay-hover-strong); }
+    .app img { width: 40px; height: 40px; object-fit: contain; }
+    .app span { font-size: 13px; }
+    .app { position: relative; }
+    .app em { position: absolute; top: 6px; right: 8px; font-style: normal; font-size: 10px; color: var(--color-text-subtle); }
+    .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+    .head h1 { margin: 0; }
+    .add { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 10px; border: none; background: var(--color-pin); color: var(--color-text-dark); font-size: 13px; font-weight: 700; cursor: pointer; }
+    .add:hover { filter: brightness(1.15); }
+    .app img.fb, .app span.fb { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; color: #fff; font-weight: 700; font-size: 20px; }
+    #menu { position: fixed; display: none; flex-direction: column; min-width: 170px; padding: 5px; border-radius: 10px; background: var(--color-surface-2); border: 1px solid var(--color-border-strong); box-shadow: 0 10px 30px #0008; z-index: 10; }
+    #menu button { text-align: left; border: none; background: none; color: var(--color-text); font-size: 13px; padding: 7px 12px; border-radius: 6px; cursor: pointer; }
+    #menu button:hover { background: var(--overlay-hover-strong); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head"><h1>Apps</h1><div style="display:flex;gap:8px"><button class="add" id="buildApp" title="Make an app from your own HTML, CSS and JS">+ Build app</button><button class="add" id="addApp">+ Add app</button></div></div>
+    <div class="grid" id="grid"></div>
+  </div>
+  <div id="menu"></div>
+  <script src="common.js"></script>
+  <script>
+    const BASE = [
+      ['browser', 'Browser', 'earth'], ['gfn', 'GeForce NOW', 'nvidia'], ['roblox', 'Roblox', 'roblox'], ['cyberpunk', 'Cyberpunk', 'cyberpunk'], ['terraria', 'Terraria', 'terraria'], ['fortnite', 'Fortnite', 'fortnite'], ['nsmbw', 'NSMB Wii', 'nsmbw'], ['sm64', 'Super Mario 64', 'sm64'], ['chatgpt', 'ChatGPT', 'chatgpt'], ['tiktok', 'TikTok', 'tiktok'], ['games', 'Game Hub', 'controller'],
+      ['notes', 'Notes', 'pyrite'], ['music', 'Spotify', 'music'], ['player', 'Player', 'music'], ['settings', 'Settings', 'settings'], ['devconsole', 'Dev Console', 'devconsole']
+    ];
+    const favicon = (u) => { try { return 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(new URL(u).hostname); } catch (e) { return ''; } };
+    let custom = [];
+    document.getElementById('addApp').addEventListener('click', () => Galaxy.send({ type: 'add-app-dialog' }));
+    document.getElementById('buildApp').addEventListener('click', () => Galaxy.send({ type: 'build-app-dialog' }));
+    const grid = document.getElementById('grid');
+    let pinned = [];
+    const menu = document.getElementById('menu');
+    function render() {
+      grid.innerHTML = '';
+      const list = BASE.map(([id, name, icon]) => ({ id, name, src: `../../assets/icons/${icon}.png`, custom: false }))
+        .concat(custom.filter((c) => c && (c.kind === 'html' || /^https?:\/\//i.test(c.url || ''))).map((c) => ({ id: c.id, name: c.name || c.url, src: c.iconUrl || favicon(c.url), custom: true })));
+      list.forEach(({ id, name, src, custom: isCustom }) => {
+        const b = document.createElement('button');
+        b.className = 'card app';
+        b.innerHTML = `<img alt=""><span></span><em></em>`;
+        const im = b.querySelector('img');
+        im.src = src;
+        im.addEventListener('error', () => {
+          const f = document.createElement('span');
+          f.className = 'fb';
+          let h = 0; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360;
+          f.style.background = `hsl(${h} 55% 45%)`;
+          f.textContent = name.trim().charAt(0).toUpperCase();
+          im.replaceWith(f);
+        }, { once: true });
+        b.querySelector('span:not(.fb)').textContent = name;
+        b.querySelector('em').textContent = pinned.includes(id) ? 'Pinned' : '';
+        b.addEventListener('click', () => Galaxy.openApp(id));
+        b.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          const on = pinned.includes(id);
+          menu.innerHTML = '<button data-a="open">Open</button>' + (['apps', 'settings'].includes(id) ? '' : '<button data-a="pin"></button>') + (isCustom ? '<button data-a="edit">Edit app</button><button data-a="rm">Remove app</button>' : '');
+          if (isCustom) {
+            menu.querySelector('[data-a=edit]').onclick = () => { hide(); Galaxy.send({ type: 'edit-app', id }); };
+            menu.querySelector('[data-a=rm]').onclick = () => { hide(); Galaxy.send({ type: 'remove-app', id }); };
+          }
+          const pinB = menu.querySelector('[data-a=pin]');
+          if (pinB) pinB.textContent = on ? 'Unpin from taskbar' : 'Pin to taskbar';
+          menu.querySelector('[data-a=open]').onclick = () => { hide(); Galaxy.openApp(id); };
+          if (pinB) pinB.onclick = () => { hide(); Galaxy.send({ type: 'pin-app', id, on: !on }); };
+          menu.style.display = 'flex';
+          const r = menu.getBoundingClientRect();
+          menu.style.left = Math.min(e.clientX, innerWidth - r.width - 6) + 'px';
+          menu.style.top = Math.min(e.clientY, innerHeight - r.height - 6) + 'px';
+        });
+        grid.appendChild(b);
+      });
+    }
+    const hide = () => { menu.style.display = 'none'; };
+    addEventListener('mousedown', (e) => { if (!e.target.closest('#menu')) hide(); });
+    addEventListener('blur', hide);
+    Galaxy.onSettings((s) => { pinned = s.pinned || []; custom = s.customApps || []; render(); });
+    render();
+  </script>
+</body>
+</html>
